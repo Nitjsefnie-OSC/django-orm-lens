@@ -50,7 +50,8 @@ jobs:
         with:
           ref: ${{ inputs.target_ref }}
       - name: Report checked-out SHA
-        run: echo "checked-out SHA: $(git rev-parse HEAD)"
+        run: |
+          echo "checked-out SHA: $(git rev-parse HEAD)"
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -70,7 +71,8 @@ jobs:
         with:
           ref: ${{ inputs.target_ref }}
       - name: Report checked-out SHA
-        run: echo "checked-out SHA: $(git rev-parse HEAD)"
+        run: |
+          echo "checked-out SHA: $(git rev-parse HEAD)"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
