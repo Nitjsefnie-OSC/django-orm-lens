@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-orm-lens"
-version = "1.0.17"
-description = "Static analysis + MCP server for Django models. Sidebar tree, ER diagrams, and JSON output for terminals and AI coding agents."
+version = "1.13.5"
+description = "Static analysis + MCP server for Django models. Blast radius, schema drift, N+1 and migration risk for CI, ER diagrams for terminals and AI agents. No DB, no Django boot. Free and MIT."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -44,8 +44,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Topic :: Software Development :: Documentation",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Software Development :: Documentation",
+  "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
     "Typing :: Typed",
 ]
@@ -53,8 +55,8 @@ dependencies = []
 
 # Default install is zero-dependency. Add [mcp] or [full] to enable MCP server for AI agents.
 [project.optional-dependencies]
-mcp = ["mcp>=1.0"]
-full = ["mcp>=1.0"]
+mcp = ["mcp>=1.0,<2; python_version < '3.10'", "mcp>=2.0,<3; python_version >= '3.10'"]
+full = ["mcp>=1.0,<2; python_version < '3.10'", "mcp>=2.0,<3; python_version >= '3.10'"]
 dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10", "build>=1.2", "twine>=5.1"]
 
 [project.scripts]
@@ -78,6 +80,9 @@ django_orm_lens = ["py.typed"]
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+# Fixtures are parser *input*, not our code — vendored upstream models
+# (Zulip/Saleor/...) and synthetic edge-case files must never be "fixed".
+extend-exclude = ["tests/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

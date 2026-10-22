@@ -1,0 +1,120 @@
+# Push our MCP Registry entry (cli/server.json) to
+# registry.modelcontextprotocol.io after a release reaches PyPI.
+#
+# Triggered by the PyPI workflow finishing, NOT by cli/server.json changing
+# on main. The manifest pins an exact version and the publish step below
+# refuses to run until PyPI serves it, but the version bump necessarily
+# lands on main *before* the release tag is pushed — so a paths-based
+# trigger fired while that version did not exist yet and burned its five
+# minutes of retries. It failed that way on 2026-07-24 (twice) and again on
+# 2026-07-27, each time going green only on a manual re-run once PyPI had
+# caught up. Chaining off the PyPI run removes the race instead of waiting
+# longer on it.
+#
+# Auth: GitHub Actions OIDC — the Registry trusts this repo via the
+# `github-oidc` login method, so no PAT / device-flow interaction is
+# needed. See https://github.com/modelcontextprotocol/registry for the
+# publisher tool.
+
+name: Publish to MCP Registry
+
+on:
+  workflow_run:
+    workflows: ['Publish Python package to PyPI']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    # workflow_run fires on failure and cancellation too. Manual dispatch has
+    # no upstream run to inspect, so it must pass this gate unconditionally.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download mcp-publisher
+        run: |
+          curl -sSL -o mcp-publisher.tar.gz \
+            https://github.com/modelcontextprotocol/registry/releases/download/v1.8.0/mcp-publisher_linux_amd64.tar.gz
+          tar -xzf mcp-publisher.tar.gz
+          chmod +x mcp-publisher
+          ./mcp-publisher --help >/dev/null
+
+      - name: Validate server.json
+        run: ./mcp-publisher validate cli/server.json
+
+      - name: Login via GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+
+      # Race guard — Registry validates the pinned PyPI version at publish
+      # time. The PyPI publish workflow runs on `py-v*` tags and can take up
+      # to ~90 s to appear in the pypi.org JSON API, while this workflow
+      # runs on push to `main`. Without this wait the first attempt hits
+      # 404 on a fresh release and needs a manual `gh workflow run` retry
+      # (as happened on py-v1.3.0 — see incident in CHANGELOG.md).
+      #
+      # Poll pypi.org's per-version JSON endpoint (returns 200 iff the
+      # version is fully indexed) every 10 s for up to 5 min, then let
+      # publish run. Adds no time on normal releases where PyPI already
+      # has the version.
+      # Idempotency guard — this workflow fires on any change to server.json
+      # OR to the workflow itself, so a pure workflow edit (like the
+      # race-guard added on 2026-07-25) triggers a publish attempt even
+      # though the pinned version already exists on the Registry, which
+      # rejects duplicates with HTTP 400 ``cannot publish duplicate
+      # version``. Detect that case here and short-circuit so infra edits
+      # are no-ops instead of red X'd workflow runs.
+      - name: Skip if version already on Registry
+        id: registry_check
+        run: |
+          set -euo pipefail
+          VERSION="$(jq -r '.packages[0].version' cli/server.json)"
+          NAME="$(jq -r '.name' cli/server.json)"
+          # The Registry search endpoint returns a paginated list; each
+          # entry wraps the server metadata under ``.server``. Match on the
+          # exact (name, version) tuple — do not rely on ordering.
+          BODY=$(curl -sS "https://registry.modelcontextprotocol.io/v0/servers?search=$(echo "$NAME" | sed 's|/|%2F|g')")
+          FOUND=$(echo "$BODY" | jq --arg n "$NAME" --arg v "$VERSION" '
+            [ .servers[] | (.server // .) | select(.name == $n and .version == $v) ] | length
+          ')
+          if [ "$FOUND" -gt 0 ]; then
+            echo "Registry already has ${NAME}@${VERSION} — nothing to publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Registry does not have ${NAME}@${VERSION} yet — will proceed."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for PyPI to reflect the pinned version
+        if: steps.registry_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          VERSION="$(jq -r '.packages[0].version' cli/server.json)"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "::error::could not read .packages[0].version from cli/server.json"
+            exit 1
+          fi
+          URL="https://pypi.org/pypi/django-orm-lens/${VERSION}/json"
+          echo "waiting for $URL"
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL")
+            if [ "$code" = "200" ]; then
+              echo "PyPI has django-orm-lens==${VERSION} after ${attempt} attempt(s)"
+              exit 0
+            fi
+            echo "attempt ${attempt}: pypi returned ${code} — sleeping 10s"
+            sleep 10
+          done
+          echo "::error::timed out waiting for django-orm-lens==${VERSION} on PyPI after 5 minutes"
+          exit 1
+
+      - name: Publish
+        if: steps.registry_check.outputs.skip != 'true'
+        run: ./mcp-publisher publish cli/server.json

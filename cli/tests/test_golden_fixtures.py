@@ -1,7 +1,8 @@
 """Golden fixture suite: parser must survive real-world Django code.
 
-Vendored `models.py` files from Zulip, Saleor, Wagtail, and django-CMS live
-under ``cli/tests/fixtures/golden/<project>/``. See that directory's README.md
+Vendored `models.py` files from Zulip, Saleor, Wagtail, django-CMS,
+Mezzanine, and Read the Docs live under
+``cli/tests/fixtures/golden/<project>/``. See that directory's README.md
 for attribution, licences, and fetch date.
 """
 

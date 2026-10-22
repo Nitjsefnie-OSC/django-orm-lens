@@ -5,6 +5,1472 @@ All notable changes to Django ORM Lens will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [py-1.13.5] - 2026-10-19
+
+### Fixed
+
+- **`blast-radius` had no target for a `RemoveField` once the field was gone
+  from `models.py` (#140).** That is the normal state after `makemigrations`,
+  and exactly when code still reading the column breaks, but `migration-risk`
+  emitted nothing for it, so `blast-radius` never scanned. It now emits an
+  `info` risk, `remove_field`, which `blast-radius --severity info` (or `all`)
+  turns into a target listing the remaining references. `migration-risk
+  --severity info` shows one more line per dropped column. The MCP
+  `blast_radius` tool also rejects an unknown `severity` with an
+  `INVALID_SEVERITY` error instead of silently treating it as `critical`.
+
+- **DBML ER export noted model line numbers 0-based (#139).** The
+  `Note: 'line N of app/models.py'` in `er --format dbml` pointed one line
+  above the class, while every other formatter prints 1-based lines. The
+  note now uses the same 1-based number.
+
+## [py-1.13.4] - 2026-10-18
+
+### Fixed
+
+- **`cascade` skipped self-referential foreign keys (#147).** A
+  `ForeignKey("self")` on the deleted model (a category tree, a reply chain)
+  was left out of every bucket, so deleting a parent looked isolated while
+  Django would cascade through its children. Self-references now land in
+  CASCADE / SET_NULL / PROTECT like any other inbound relation, are marked
+  `"self": true` in JSON and `(self)` in the text output.
+
+- **`blast-radius --only` now accepts project-root-relative migration paths when
+  invoked from another directory (#149).** Paths relative to the current working
+  directory and absolute paths continue to work.
+
+- **`impact --format json` and the MCP `impact` tool reported 0-based line
+  numbers while the text output printed the same finding 1-based (#150).** A
+  reference on line 21 came back as `"line": 20`, so agents citing `file:line`
+  from JSON pointed one line above the real code. `ImpactFinding.to_dict()`
+  now serializes a 1-based `line` (the same number the text and markdown
+  renderers print), which also fixes `blast-radius --format json`. This is a
+  JSON contract change: consumers that added 1 themselves should stop.
+  `column` stays 0-based, and the in-memory `ImpactFinding.line` attribute
+  stays 0-based to match the VS Code extension and the LSP.
+
+- **Migration-risk AddIndex finding overstated PostgreSQL's lock mode (#151).**
+  Plain `AddIndex` now correctly reports a SHARE lock: writes block while reads
+  continue. `AlterUniqueTogether` and table-rewriting column type changes
+  continue to report ACCESS EXCLUSIVE.
+
+- **`blast-radius` scanned the new name for `RenameField` / `RenameModel`
+  (#148).** The code that breaks after a rename is the code still using the
+  old name, but the reference scan looked for the new one, so it missed those
+  references and listed unrelated lookalikes of the new name instead. Rename
+  targets now scan for the old name; the target label still shows the new
+  name.
+
+## [py-1.13.3] - 2026-10-14
+
+### Fixed
+
+- **The `impact` MCP tool rejected the `name` argument its description asks
+  for (#138).** The tool was registered with a `name_` parameter, so `tools/list`
+  advertised `name_` while the description said "Required 'name' argument",
+  and an agent passing `name` got `MISSING_NAME: pass 'name'`. The tool now
+  accepts `name`; `name_` keeps working for clients that learned it from the
+  old schema.
+
+## [0.19.4] - 2026-10-08
+
+### Fixed
+
+- **Models whose base class lives outside `models.py` disappeared (#135).**
+  `class Person(MyCustomModel)` with `MyCustomModel` in `core/base.py` was
+  missing from the sidebar, the ER diagram and every rule: only
+  `models.py`, `abstract_models.py` and `models/*.py` are read, so the base had
+  no definition and nothing below it was recognized as a model. The scan now
+  follows the subclass's imports to the file that defines the base — plain and
+  relative imports, `from core import base` aliases, and re-exports through a
+  package `__init__.py` — and inherited fields come along. Only classes that a
+  model actually inherits from are read from those files, and nothing outside
+  the workspace root is opened. Same fix as py-1.13.2.
+- **`djangoOrmLens.excludeGlobs` wildcard patterns other than `**/dir/**`
+  were matched as plain substrings**, so `**/*_test.py` excluded nothing in
+  the extension while the CLI's `fnmatch` excluded it. They now match the way
+  the CLI matches them.
+
+## [py-1.13.2] - 2026-10-08
+
+### Fixed
+
+- **Models whose base class lives outside `models.py` were dropped from
+  `scan` and every command built on it (#135).** A base in `core/base.py` or
+  any other non-model module had no definition to resolve against, so
+  `class Person(MyCustomModel)` vanished along with its fields. `scan_workspace`
+  now follows the subclass's imports — plain, relative, module aliases and
+  package re-exports — to the base's file, so the model, its inherited fields
+  and the MCP tools that read them are back. Only inherited-from classes are
+  read, and nothing outside the scan root is opened.
+
+## [0.19.3] - 2026-10-06
+
+### Fixed
+
+- **`DOL007` flagged loops that already had `select_related` on a reverse
+  OneToOne.** `user.profile`, where `Profile.user` is a `OneToOneField`, was
+  treated like a `profile_set` manager that only `prefetch_related` covers, so
+  `User.objects.select_related("profile")` was still reported. The reverse
+  side of a OneToOne is a single object and either clause now covers it, as
+  does `prefetch_related` on a forward FK. Without an explicit `related_name`
+  the reverse accessor is now looked up as `<model>` instead of `<model>_set`,
+  so a genuine N+1 through it is no longer missed. Same fix as py-1.13.1.
+
+## [py-1.13.1] - 2026-10-06
+
+### Fixed
+
+- **`n-plus-one` false positive on a reverse OneToOne with `select_related`.**
+  The schema typed the reverse side of a `OneToOneField` as a reverse manager,
+  so `select_related("profile")` did not count and the suggested fix was
+  `.prefetch_related("profile")`. It now has its own `reverse_o2o` kind:
+  covered by either clause, fixed with `.select_related(...)`, and named
+  `<model>` rather than `<model>_set` when no `related_name` is set, which
+  also surfaces N+1s that were silently skipped. A forward FK loaded through
+  `prefetch_related` is no longer reported either.
+
+## [0.19.2] - 2026-09-28
+
+### Changed
+
+- **Marketplace and Open VSX listing refreshed.** The listing shows the README
+  packaged with the extension, so it still carried the old hero. It now leads
+  with what the extension does (ER diagrams, N+1 detection, migration-risk
+  checks), and the quickstart runs commands with
+  readable output instead of the full JSON index. No code changes.
+
+## [0.19.1] - 2026-09-28
+
+### Fixed
+
+- **Schema-aware diagnostics were missing in files open at startup.** Every
+  document open when VS Code starts is linted before the first workspace scan
+  finishes, and nothing re-linted it afterwards, so `DOL008` (misspelled
+  lookup) and the schema gates of `DOL007` stayed silent until the file was
+  edited. The same gap meant a `models.py` change never reached diagnostics in
+  views that were already open. Open documents are now re-linted whenever the
+  index is replaced.
+
+- **`DOL007` skipped loops over common querysets.** The loop-head pattern only
+  accepted flat argument lists and no call after the first, so
+  `for o in Order.objects.filter(created__lte=timezone.now()):` and
+  `for o in Order.objects.filter(...).order_by("-id"):` were never inspected.
+  The head is now read with balanced parentheses (string literals skipped)
+  across the whole call chain, and a `select_related(...)` anywhere in that
+  chain still silences the finding.
+
+## [0.19.0] - 2026-09-21
+
+### Added
+
+- **New rule `DOL041` — planner settings overridden in raw SQL.** Application
+  code that toggles planner GUCs (`enable_*`, `plan_cache_mode`, `jit*`) takes
+  the plan choice away from the Postgres planner — connection-wide for `SET` /
+  `SET SESSION`, transaction-scoped for `SET LOCAL` — so a query that passes
+  review and tests can collapse into a forced nested-loop join as its row set
+  grows. The line-oriented rule sees the GUC name even when the value is a
+  bind parameter (`SET enable_seqscan = %s`), flags `SET` / `SET LOCAL` /
+  `SET SESSION` alike, and stays quiet on non-planner session settings
+  (`search_path`, `statement_timeout`, `work_mem`, …). Default severity
+  `warning`, applicability `unsafe` — the safe repair is a query or index
+  change, so no QuickFix. Refs #110.
+
+- **Simplified Chinese rule index.** The existing `DOL021` and `DOL022`
+  translations now have a dedicated partial-locale index linked from the
+  Chinese README. Refs #81.
+
+- **Italian translations for the model-definition rules.** The documentation
+  for `DOL011` through `DOL015` is now available in Italian, with a dedicated
+  index linked from the complete rule reference. Refs #52.
+
+- **Italian translations for the queryset rules.** The documentation for
+  `DOL001` through `DOL008` is now available in Italian and linked from the
+  locale index. Refs #98.
+
+### Fixed
+
+- **DOL007 no longer fires on attribute accesses that cost nothing.**
+  [#85](https://github.com/FROWNINGdev/django-orm-lens/issues/85) reported four
+  loops the extension flagged and the CLI left alone: a local column, a
+  foreign key the same statement had already covered with `.select_related()`,
+  a `@property` inherited from an abstract base, and a column on an annotated
+  queryset. The rule fired on essentially every list-and-print loop, so the
+  practical response was to disable it workspace-wide — which also costs the
+  true positives it exists to catch.
+
+  The cause was that DOL007 was pure line shape while the CLI's `nplusone`
+  analyzer has always been schema-aware. Per the parser-parity contract the
+  CLI is the reference, so its two gates were ported rather than a third set
+  of semantics invented: an attribute the schema declares as a plain field is
+  skipped, as is one a *known* model does not declare at all — which is what a
+  property looks like from the outside — and a relation the chain already
+  spans is skipped.
+
+  The gates are independent, which matters more than it sounds. The coverage
+  gate needs no schema, so it holds during a cold start, and on its own it
+  fixes the case where the rule contradicted code that had already taken its
+  advice. The scalar gate needs the workspace index and stays off without one,
+  so a pass that runs before the first scan finishes behaves as it did before
+  instead of reporting from a schema it does not have. A model missing from
+  the index is never read as "scalar", so a partial scan cannot silence real
+  findings.
+
+  Verified against the reference rather than against the report: on the
+  reporter's four cases the CLI prints `No N+1 anti-patterns detected` and the
+  extension now returns zero findings on the same files.
+
+- **Diagnostics recomputed on every keystroke had no schema.**
+  `onDidChangeTextDocument` was the one refresh path that did not pass the
+  workspace index, so schema-aware rules ran with their gates off during
+  editing — the path that produces nearly every diagnostic a user actually
+  sees. Three of the four false positives above survived the fix until this
+  was corrected, which is why it is listed separately.
+
+  The QuickFix provider had the same gap from the other side: it re-runs a
+  single rule to recover a finding's `fixHint` and matches by exact range, but
+  it re-ran without the index the diagnostics were produced with. Once a rule
+  returns different findings with and without a schema, that match fails and
+  the fix silently stops being offered — a bug that reads as a missing
+  feature. The provider now takes the same index getter.
+
+## [0.18.0] - 2026-08-20
+
+### Added
+
+- **DOL008 — a lookup name that looks misspelled.** Point 4 of the original
+  [#3](https://github.com/FROWNINGdev/django-orm-lens/issues/3) sketch, and the
+  last of it. `Post.objects.filter(titel="x")` is flagged with `title` as the
+  suggestion, and a QuickFix replaces exactly that segment, so
+  `author__emial` becomes `author__email` rather than losing its prefix.
+
+  Django raises `FieldError` for a bad lookup name, but only when the queryset
+  is evaluated — which for a filter inside a branch may be in production
+  rather than in a test.
+
+  The rule waited three releases on purpose. A completion that stays silent
+  when unsure costs nothing; an error squiggle that is wrong when unsure puts
+  a red underline on correct code and teaches people to turn the extension
+  off. Two properties hold the precision, and both are structural rather than
+  tuned:
+
+  **It cannot fire on anything completion would offer.** The check asks the
+  completion resolver for the names valid at that position and reports only
+  what is missing from that list — the same resolver, not a weaker second copy
+  that would drift from it. Inherited fields, cross-file bases, reverse
+  accessors, `pk` and per-type lookups are all covered for free, which is
+  exactly why this needed v0.15.0, v0.16.0 and v0.17.0 to land first. Shipped
+  earlier it would have underlined `Author.objects.filter(posts__title=...)`,
+  which is ordinary Django.
+
+  **It only fires when there is a near match to name.** "I do not recognise
+  this" is a low-precision claim — annotations, custom lookups and unparsed
+  mixins all land there. "This looks like a misspelling of that" is a
+  high-precision one and comes with something actionable. One edit of slack for
+  names of four characters or fewer, two for longer; the first character must
+  match, since that is the letter people get right even when they fumble the
+  rest.
+
+  It stays silent entirely on a line carrying `.annotate()`, `.alias()` or
+  `.extra()`, on arguments containing a nested call such as `Q(...)`, when the
+  model does not resolve, and past the first unrecognised segment of a path.
+  The fix is `suggestion`, never auto-applied: however close the spelling, the
+  suggestion is a guess about intent, and renaming a lookup unattended could
+  change what a query returns.
+
+### Changed
+
+- **`RuleContext` can carry the parsed workspace.** Optional, because most
+  rules are pure text shape — `.count() > 0` needs no schema — and because the
+  rule pass must still run before the first scan completes. A rule that needs
+  the schema returns nothing when it is absent rather than guessing, so a cold
+  start is quiet rather than wrong.
+
+- **One Levenshtein implementation instead of two.** Extracted to
+  `src/textDistance.ts` when the typo detector became a second caller. Two
+  independent copies is how "the rename detector and the typo detector
+  disagree about what counts as close" becomes a bug nobody can reproduce.
+
+- **The fixer registry test derives rule codes from the rules.** It held a
+  hand-kept list of code strings and failed on DOL008 for no better reason
+  than that nobody had added the string to it — noise that says nothing about
+  whether a fixer points at a real rule, which is the only thing the test is
+  for.
+
+## [0.17.0] - 2026-08-20
+
+### Fixed
+
+- **The TypeScript parser now resolves inheritance the way the Python CLI
+  already did** ([#84](https://github.com/FROWNINGdev/django-orm-lens/issues/84)).
+  v0.16.0 taught it that a subclass of a local model is a model, with a single
+  backward pass. Comparing the result against `cli/django_orm_lens/parser.py`
+  afterwards showed that side had solved the same problem years-of-commits
+  earlier and solved more of it, so the two implementations disagreed. Five
+  gaps, closed together:
+
+  1. **Fixed point instead of source order.** `resolveAndFilter` iterates until
+     nothing changes, so `class Post(TimeStamped)` written *above* its base
+     resolves. The v0.16.0 notes claimed source order was safe because "Python
+     requires the base to be defined before the subclass" — that is untrue once
+     the base is imported, and the Python implementation never relied on it.
+
+  2. **Bases in another file.** `scanWorkspace` now collects every definition
+     first and resolves the union once, matching `scan_workspace`. A project
+     keeping its abstract bases in `core/models.py` — the usual place — used to
+     lose every model that inherits from one.
+
+  3. **`abstract_models.py` is read.** Pluggable frameworks keep abstract bases
+     there and leave `models.py` holding only concrete subclasses; django-oscar
+     does this in all 14 of its apps. The glob and the directory walk both
+     cover it now, as `MODEL_SOURCE_FILES` already did on the Python side.
+
+  4. **Abstract models are dropped.** They have no table, so a schema tool has
+     nothing to show for them. This is a visible change: an abstract base that
+     used to appear in the sidebar and the ER diagram no longer does. It is
+     what the CLI has always done, and one behaviour is better than two.
+
+  5. **`ParsedModel.inheritedFields`.** Fields reaching a model from its
+     abstract bases are exposed as their own list, each carrying
+     `inheritedFrom`, rather than being merged into `fields` at the point of
+     use. Only abstract bases contribute: a concrete parent is multi-table
+     inheritance, where the columns stay on the parent's table and copying them
+     onto the child would invent columns no migration will ever create.
+
+- **The parity fixture had no local base class in it.** `test/parity.test.js`
+  and `cli/tests/test_parity.py` assert against one shared fixture, which is
+  the right design — but `parity_input.py` contained nothing that exercised
+  inheritance, so both suites stayed green while the two parsers disagreed
+  about the most common inheritance pattern in Django. The fixture now carries
+  an abstract `Auditable` and a concrete `Chapter(Auditable)` that redeclares
+  one inherited field, and both suites assert the same answer for it.
+
+## [0.16.0] - 2026-08-20
+
+### Fixed
+
+- **Models built on a project-local abstract base were invisible to the whole
+  extension.** The recogniser was a fixed list of base names — `models.Model`,
+  `Abstract*`, `*Mixin`, `TimeStampedModel` and a few more. A base under any
+  other name matched none of them, so this parsed as one model instead of two:
+
+  ```python
+  class TimeStamped(models.Model):          # found
+      created = models.DateTimeField(auto_now_add=True)
+      class Meta:
+          abstract = True
+
+  class Post(TimeStamped):                  # not found at all
+      title = models.CharField(max_length=200)
+  ```
+
+  `Post` was missing from the sidebar, from the ER diagram, from hover, and
+  from every DOL rule — not merely missing some fields. `class Post(TimeStamped)`
+  is about as common as Django patterns get, and any project whose base is
+  called `BaseModel`, `Auditable` or `SoftDelete` hit this for its entire model
+  layer.
+
+  A class already recognised as a model in a file now makes its subclasses
+  models too. One forward pass covers it, because Python requires the base to
+  be defined before the subclass — so a class declared *above* its base is
+  still not retroactively a model, which would be inventing one. The
+  non-model guard is unchanged and tested: `ModelForm`, `ModelAdmin` and their
+  kind stay out however local a base is in reach. A base imported from another
+  module is still matched by name only; that is a separate, larger fix.
+
+### Added
+
+- **Completion offers inherited fields.** `ParsedModel.fields` holds only what
+  a class declares itself, so even once `Post(TimeStamped)` parsed, `created`
+  was absent from its completion list while being legal in every lookup. The
+  walk now climbs the declared bases, covering abstract bases — whose columns
+  land on the child's own table — and concrete parents, whose columns stay on
+  theirs. Either way the lookup is legal, which is the question completion is
+  answering. A child redeclaring a base field wins, matching the MRO, and an
+  inherited field keeps its own typed lookups: `created__year` follows a
+  `DateTimeField` through the inheritance walk.
+
+## [0.15.0] - 2026-08-20
+
+### Added
+
+- **Completion offers reverse accessors.** Django puts an accessor on the
+  *target* of every relation, named by `related_name` or, failing that, by the
+  declaring model in lower case. These are as valid in a lookup as any declared
+  column, and they are invisible in `ParsedModel.fields`, which holds only what
+  a model declares itself. So until now the "one" side of every ForeignKey in
+  a project offered nothing but its own columns:
+
+  ```python
+  Author.objects.filter(          # offered: name, pk
+  Author.objects.filter(          # now also: books, edited_book
+  Author.objects.filter(books__author__name=...)   # traverses back out again
+  ```
+
+  `related_name='+'` is Django's opt-out and suppresses the accessor entirely,
+  so those are not offered — naming one would name something that does not
+  exist.
+
+  Suggestions now sort in four groups: declared fields, forward relations,
+  reverse accessors, then lookups. A lookup never pushes a field name down the
+  list, since a lookup is what you reach for *after* picking a field.
+
+## [0.14.0] - 2026-08-20
+
+### Added
+
+- **Completion resolves a queryset bound to a name**
+  ([#83](https://github.com/FROWNINGdev/django-orm-lens/issues/83)). v0.13.0
+  handled the literal `Post.objects.filter(` and nothing else, which meant the
+  single most common real shape — anything that builds a queryset
+  conditionally — offered nothing:
+
+  ```python
+  qs = Post.objects.all()
+  if request.GET.get("mine"):
+      qs = qs.exclude(published=False)
+  qs = qs.filter(auth        # now offers `author`
+  ```
+
+  The scan walks backwards from the cursor for the binding of that name and
+  follows `qs = qs.filter(...)` hops back to the model. The nearest binding
+  wins, because a rebinding makes the earlier one dead as far as the cursor is
+  concerned.
+
+  Three refusals matter as much as the resolution, and each has a test. A
+  binding whose right-hand side is not recognised — `qs = build_queryset(request)`
+  — **poisons** the lookup rather than falling through to an older binding of
+  the same name, which would answer with a model the code no longer holds. A
+  binding on the far side of a `def` or `class` is a different variable and is
+  not used. And a dotted receiver like `self.qs.filter(` is not treated as the
+  local `qs`, however similar the trailing name looks.
+
+  The module stays a pure function: the preceding lines are a parameter, not a
+  document read from inside it, so all twelve new cases run without a VS Code
+  host. The provider passes at most 200 lines of context — the scan stops at
+  the enclosing `def` anyway, so this only bounds a module-level binding with a
+  very long file under it.
+
+## [0.13.1] - 2026-08-20
+
+### Changed
+
+- **The Marketplace listing leads with autocomplete, and is searchable for
+  it.** v0.13.0 shipped the feature #3 called the moat — the one thing no
+  shipped Django extension does well — and then described the extension
+  without mentioning it. The keyword list had no `autocomplete`, no
+  `intellisense`, no `completion`: the exact words someone types when they
+  want this. A feature nobody can search for is a feature nobody finds.
+
+  This is v0.10.1 repeating, and it needs a release of its own for the same
+  reason: store metadata takes effect only on publish, so it cannot ride along
+  with the next feature without being invisible until then.
+
+## [0.13.0] - 2026-08-20
+
+### Added
+
+- **Field completion inside `Post.objects.filter(...)`** — the moat feature
+  from [#3](https://github.com/FROWNINGdev/django-orm-lens/issues/3), open
+  since the project's second day. Typing inside `filter`, `exclude`, `get`,
+  `annotate`, `order_by`, `values`, `only`, `defer` and their siblings offers
+  the model's fields, and `author__` walks the ForeignKey to offer the *related*
+  model's fields. Two edges compose: `parent__author__name`. A
+  self-referential `ForeignKey('self')` resolves back to its own model.
+
+  Lookups are typed rather than a flat list. `title__` offers `icontains` and
+  `istartswith` but not `gt`; `views__` offers `gte` and `range` but not
+  `icontains`; `created__` adds `year`, `month`, `hour` and `date`; a
+  `BooleanField` stays at `exact` / `in` / `isnull`, because listing ordered
+  lookups there is noise in the one place the list should be shortest.
+
+  The decision is `completionsAt()` in `src/ormCompletions.ts` — a pure
+  function over a line of text and the parsed index, with no `vscode` import,
+  covered by 30 tests. Scope is "best effort, never wrong-looking": resolving a
+  queryset's model in general needs type inference across assignments and
+  managers, so what is implemented is the literal `<Model>.objects.<method>(`
+  shape that covers the great majority of real calls, and everything outside it
+  returns nothing rather than a guess. An empty list costs the user nothing; a
+  list of fields from the wrong model costs them a debugging session. In that
+  spirit the cursor being past an `=` — typing a *value* — offers nothing, and
+  a paren inside a string literal does not open a completion context at all.
+
+  Two details that are invisible until they are wrong: `_` is a trigger
+  character alongside `(` and `,`, because a lookup path never leaves a word
+  and VS Code would not re-query after `author__` on its own; and the replaced
+  range is the whole lookup path rather than VS Code's default word range,
+  which stops at the last `__` and would land `author__name` as
+  `author__author__name`. Both have tests.
+
+  New setting `djangoOrmLens.completions.enabled` (default `true`), read per
+  request so toggling it needs no window reload.
+
+## [py-1.13.0] - 2026-08-20
+
+### Added
+
+- **The MCP server runs on mcp 2.x, and 3.9 keeps mcp 1.x.** mcp 2.0.0 deleted
+  `mcp.server.fastmcp`, the only name `mcp_server.main()` knew, so the extra
+  installed cleanly and then told the user `requires the 'mcp' package` about a
+  package sitting in site-packages. The bound was capped at `<2` to stop that;
+  this lifts the cap by teaching the bootstrap both SDKs rather than by
+  widening a version range and hoping.
+
+  `_load_server_class()` prefers `MCPServer` from `mcp.server` and falls back
+  to `FastMCP`. The decorator and `run()` halves are identical between the two,
+  so that import is the whole difference — except for one improvement: 2.x
+  takes `version=` at construction, which is exactly what
+  `_advertise_our_version()` exists to fake on 1.x, so on 2.x the version now
+  reaches `initialize` through supported API instead of a private attribute.
+
+  The extra splits on an environment marker rather than dropping a Python:
+  `mcp>=1.0,<2` below 3.10 and `mcp>=2.0,<3` at 3.10 and up. mcp 2.0 requires
+  3.10, and this package supports 3.9 — dropping 3.9 across a CLI whose whole
+  pitch is working against old, broken checkouts, to satisfy one optional
+  extra, would be the tail wagging the dog. Both ceilings stay closed, so a 3.0
+  that removes `MCPServer` the way 2.0 removed `FastMCP` fails a test rather
+  than a user's terminal.
+
+  Verified against a real mcp 2.0.0 install, not only against the import logic:
+  all thirteen tools register through the 2.x decorator, `workspace_root`
+  appears in every `inputSchema`, and `initialize` reports this package's
+  version.
+
+### Fixed
+
+- **CI never once constructed the MCP server against a real SDK.** The `dev`
+  extra does not pull `mcp`, so every test touching it hit its `FastMCP is
+  None` sentinel and skipped — twelve green matrix legs, zero coverage of the
+  bootstrap. That is precisely how an SDK deleting the module this server
+  imports became a user-visible failure instead of a red build. One leg
+  (3.12 / Django 5.2, where the marker resolves mcp 2.x) now installs the
+  extra. The SDK path does not vary by Django version, so one leg buys the
+  coverage and the other eleven buy only install time.
+
+- **`_advertise_our_version()` silently did nothing on mcp 2.x.** It looked for
+  `_mcp_server`, the FastMCP handle; `MCPServer` calls it `_lowlevel_server`
+  and raises `AttributeError` for the old name. Measured, not assumed. The
+  handle is now resolved through `_lowlevel_handle()`, which tries both and
+  degrades to leaving the version alone rather than throwing if a third SDK
+  names it something else again.
+
+## [0.12.2] - 2026-08-20
+
+### Added
+
+- **The webview message guard has a test that runs without a browser.** The
+  guard reported in [#55](https://github.com/FROWNINGdev/django-orm-lens/issues/55)
+  — every `postMessage` from the extension host dropped, so an open ER panel
+  never updated — was fixed on the day it was measured, in `f93e5fd`, and has
+  shipped since v0.10.0. What did not ship was anything to stop it happening
+  again.
+
+  It could not have: the policy lived inside `src/webview/`, which tsconfig
+  excludes from `tsc` because esbuild bundles it separately, so nothing in it
+  reaches `out/` and nothing in it can be `require`d by a test. A guard that
+  rejected every real message was invisible to a fully green suite — the same
+  shape of failure as the py-1.9 → 1.12 wave, and the reason the first paint
+  kept working is that initial state is embedded in the HTML rather than sent
+  over the channel, so the bug only appeared on *update*.
+
+  The decision is now `acceptsMessage()` in `src/webviewMessages.ts`, a pure
+  function importable from both the bundle and the test, covered by ten cases:
+  an `index` and a `theme` push are accepted regardless of `source` — the
+  regression itself — while a foreign origin, an origin that merely prefixes
+  ours, a missing origin, an unknown `type`, and a non-object payload are all
+  rejected without throwing.
+
+### Fixed
+
+- **DOL007 reported an N+1 on loops that iterate model classes.** Reported in
+  [#72](https://github.com/FROWNINGdev/django-orm-lens/issues/72).
+
+  The rule treated every `for x in <expr>:` head as a loop over a queryset, so
+  a sweep like `for model in auditory_models():` was in scope and
+  `model.ANONYMISE_AFTER` — a plain class attribute resolved through the MRO,
+  no database involved — came back as a possible N+1 suggesting
+  `select_related()` / `prefetch_related()`, which have nothing to act on
+  there. Loops over `range(...)`, `os.listdir(...)` and any other helper call
+  were reported the same way.
+
+  The loop head is now gated on its source. A source containing a `(` is in
+  scope only when the text before that first `(` is
+  `<Model>.objects.<method>` — exactly three dotted segments with `objects`
+  in the middle — or a dotted chain ending in a queryset-producing method
+  (`filter`, `exclude`, `annotate`, `order_by`, …). `range(...)`,
+  `os.listdir(...)`, `apps.get_models()` and a helper call such as
+  `auditory_models()` are skipped. The cost is a false negative: a helper
+  that does return a queryset, `recent()` or `self.get_queryset()`, is
+  skipped as well, because a line-oriented rule cannot follow what a callee
+  returns.
+
+  A source containing no `(` — a bare name (`for user in users:`) or a
+  dotted chain (`for entry in self.pending:`) — is still in scope: it names
+  no call, so it is evidence neither way, and `users = User.objects.all()`
+  is the common idiom.
+
+## [0.12.1] - 2026-08-14
+
+### Fixed
+
+- **Export as SVG wrote an unopenable file.** Reported by a user; PNG export
+  was never affected, which is why this survived since the feature landed.
+
+  `html-to-image` returns two different data-URL flavours. `toPng` gives
+  `data:image/png;base64,…`; `toSvg` gives
+  `data:image/svg+xml;charset=utf-8,` followed by *percent-encoded* markup.
+  The save path assumed base64 for anything starting with `data:`, and
+  base64-decoding percent-encoded text does not fail — the decoder silently
+  drops `%`, `<`, `"` and every other character outside its alphabet and
+  happily returns bytes. A 48-character `<svg>` document came out as
+  `dc 2b 2f 83 6d 31 9a 59 …`, so the file on disk had the right name, a
+  plausible size, and no valid content anywhere in it.
+
+  The transfer encoding is now read from the data URL header instead of
+  guessed from the `data:` prefix, so base64 and percent-encoded payloads each
+  take their own path. A malformed escape sequence falls back to writing the
+  raw text rather than throwing away the export.
+
+## [0.12.0] - 2026-08-12
+
+### Added
+
+- **The extension now asks for a GitHub star — once, and only after it has
+  been useful.** Measured on 2026-08-12: 62 Marketplace installs against 61
+  GitHub stars. Installs overtaking stars says people find the extension in
+  the Marketplace, use it, and never open the repository; the ask was absent
+  entirely, so its conversion was not low, it was zero by construction.
+
+  The prompt is deliberately not shown on install — a prompt that arrives
+  before the tool has done anything gets dismissed reflexively, and that
+  dismissal is permanent in the user's mind whether or not it is in ours. It
+  fires on the third *user-initiated* ER diagram open. Sidebar refreshes that
+  re-render an already-open panel are not counted: they are not the user
+  asking for anything, and counting them would inflate the trigger into
+  something closer to a timer.
+
+  "Later" and "Don't ask again" are stored as separate states. Conflating
+  them either nags someone who declined or silently drops someone who was
+  merely busy. A deferral re-arms the ask exactly once, twelve opens later;
+  ignored twice, it goes quiet for good. Two prompts, lifetime maximum.
+
+  The decision is a pure function (`shouldPrompt`) with the thresholds
+  injectable, so the policy is covered by six tests that need no VS Code
+  host. Everything touching `vscode` is confined to one function, and it
+  swallows its own errors: a broken nag must not break the diagram it is
+  attached to.
+
+## [0.11.0] - 2026-08-09
+
+### Added
+
+- **The sidebar and the ER diagram now see django-mptt models.** The extension
+  ships the TypeScript half of the parser change released as py-1.12.0: a class
+  built on `MPTTModel` used to be skipped before any field was read, and
+  `TreeForeignKey` / `TreeOneToOneField` / `TreeManyToManyField` were dropped
+  against the field whitelist even inside a model that was detected. Both are
+  fixed, and the `Tree*` fields are reported as the Django field they subclass,
+  so a `TreeForeignKey('self', ...)` draws the same self-edge a plain
+  `ForeignKey('self', ...)` does.
+
+  Cut as its own release rather than folded into a later one: between
+  py-1.12.0 shipping and this version, the CLI and the extension disagreed
+  about what a django-mptt schema contains, which is the exact failure the
+  shared golden fixture exists to prevent. See the py-1.12.0 entry below for
+  the full reasoning and the Saleor measurement.
+
+## [py-1.12.0] - 2026-08-09
+
+### Added
+
+- **django-mptt models are no longer invisible.** `MPTTModel` matched none of
+  the base-class patterns the parser recognises, so a `class Category(MPTTModel)`
+  was dropped before a single field was read — absent from the sidebar, the ER
+  diagram, and every analyzer. Closing that alone would not have been enough:
+  `TreeForeignKey`, `TreeOneToOneField` and `TreeManyToManyField` are checked
+  against a literal whitelist too, so the model would have surfaced with its
+  scalar fields and no edges at all — worse than hidden, because it looks
+  complete. Both halves are fixed. The `Tree*` fields are thin subclasses of
+  Django's own relation fields, so they are reported as the field they
+  subclass: `TreeForeignKey('self', ...)` produces exactly the self-edge a
+  plain `ForeignKey('self', ...)` does, honouring `on_delete` and
+  `related_name`, and nothing downstream needs to learn about mptt.
+
+  Measured on the vendored corpus: Saleor's `product.Category` — a real
+  `MPTTModel` with a self-referential `parent` — now appears in the golden
+  snapshot with all of its fields and its `children` edge. The snapshot diff
+  is 76 added lines and no removed ones, so nothing that used to parse was
+  disturbed.
+
+  Additive and import-free by design: no `django-mptt` dependency, so the
+  parser keeps working against a project whose venv is broken. Mirrored in
+  `src/parser.ts` so the extension and the CLI cannot disagree about a schema.
+  Closes #49.
+
+### Fixed
+
+- **`DOL021` documented the `USE_TZ` default wrongly, and overstated what
+  `timezone.now()` returns.** The page claimed `USE_TZ=True` was "Django's
+  default since 4.0". It was not: the framework default in
+  `django.conf.global_settings` stayed `False` through 4.2 and became `True`
+  only in 5.0. Since 4.0 the `startproject` template writes `USE_TZ = True`
+  into generated settings, which is a separate thing — a project upgraded to
+  4.x keeps `False` until someone sets it. Collapsing the two misled exactly
+  the most common reader: an existing 4.x project with the setting untouched.
+  The page also called `timezone.now()` "an aware UTC datetime" flatly, when
+  it follows the setting and returns naive local time under `USE_TZ=False`.
+  The same claim was duplicated in `src/rules/datetime.ts` and is corrected
+  there too. Found by [@Justine0211](https://github.com/Justine0211) while
+  translating the page, by declining to translate a statement they could not
+  verify against the Django release notes.
+
+### Changed
+
+- The `parity_input.py` test fixture now carries the `from django.db import
+  models` import a real `models.py` would have. No behaviour change — the
+  parity test asserts model shape, never line numbers — but the fixture reads
+  as genuine Django, and starts clean if that directory is ever linted.
+  Contributed by [@RinZ27](https://github.com/RinZ27) in
+  [#64](https://github.com/FROWNINGdev/django-orm-lens/pull/64).
+
+## [py-1.11.0] - 2026-07-31
+
+### Added
+
+- **django-taggit's `TaggableManager` is a many-to-many relation now.** It
+  declares itself like an ordinary field, but the relation it creates runs
+  through `taggit.TaggedItem` to `taggit.Tag`. The parser saw a field type it
+  did not know and dropped the edge, so every tagged model showed one relation
+  fewer than it has — on the Read the Docs golden fixture the `tags` field was
+  absent outright, which is why that snapshot gains an entry rather than
+  changing one. Explicit `through=` overrides are honoured. Both parsers are
+  updated, Python and TypeScript, so the CLI and the extension keep answering
+  identically. Contributed by [@Guflly](https://github.com/Guflly) in
+  [#63](https://github.com/FROWNINGdev/django-orm-lens/pull/63), closing
+  [#50](https://github.com/FROWNINGdev/django-orm-lens/issues/50).
+
+## [py-1.10.0] - 2026-07-31
+
+Three defects found by running the CLI over real checkouts of django-oscar,
+django-guardian, django-allauth and django-cms rather than over fixtures. Each
+one was invisible to a green test suite, and two of them made the tool answer
+confidently with something false.
+
+### Fixed
+
+- **`drift` reported a false blocking failure when two apps shared a name.**
+  The third finding from the same real-world run, on django-guardian, which
+  ships both `example_project/core` and `example_project_custom_group/core`.
+  The parser labels an app by its directory, so the *declared* side merged the
+  two; the migration side replayed each directory on its own. One project's
+  migrations were therefore compared against both projects' models, and the
+  report contradicted itself — `core.customgroup` came out as "declared, but
+  no migration creates it" **and** "migrated but no longer declared", with
+  `core.customuser` printed twice. The first of those is a blocking verdict,
+  so anyone running `drift` in CI over a repo with two same-named app
+  directories — every monorepo — could have a build failed by a model that was
+  migrated perfectly well. Replayed state is now merged per app name, matching
+  how the declared side is already keyed. On the real guardian checkout the
+  blocking count goes from 1 to 0 and the duplicate row disappears, while a
+  genuinely unmigrated field still blocks.
+
+- **Abstract bases in `abstract_models.py` were never read.** The other half of
+  the same django-oscar run: once its models were found, 72 of the 83 had zero
+  fields between them, because every pluggable framework keeps the abstract
+  base in `abstract_models.py` and leaves `models.py` holding only the
+  concrete subclass. A model reported with no columns reads as a schema that
+  lost them, which is a worse answer than admitting the file was not read.
+  The workspace walk now takes `abstract_models.py` alongside `models.py`;
+  the bases are still dropped from the results, they only become available for
+  inheritance. oscar goes from 72 empty models to 8 — and those 8 are correct:
+  they subclass *concrete* models, where multi-table inheritance leaves the
+  columns on the parent's table.
+
+- **Models declared inside a module-level block were invisible.** Running the
+  CLI over a real django-oscar checkout — not a fixture — showed 12 models for
+  the whole framework, and every one of them came from oscar's `tests/`
+  directory: 21 of its 22 app `models.py` files parsed to nothing. Catalogue,
+  order, offer, partner, payment, shipping, voucher, customer, address,
+  analytics, reviews and wishlists were all missing. Reporting a project's
+  test fixtures as its schema is worse than reporting none of it.
+  The cause is the swappable-model idiom every pluggable Django framework
+  uses — `if not is_model_registered(...):` and then an indented `class` —
+  against class discovery anchored on `^class`. A class is now matched on its
+  dedented view and accepted when everything enclosing it is a block statement
+  (`if`, `try`, `with`, `for`); a `def` or `class` outwards still rejects it,
+  so `Meta`, nested helpers and factory-local models stay out. django-oscar
+  now yields 82 models. All six golden snapshots are byte-identical: a
+  column-0 class parses exactly as before.
+
+### Added
+
+- **A sixth golden fixture: Read the Docs.** The vendored `projects/models.py`,
+  its generated snapshot, reproducible fetch metadata and MIT attribution, next
+  to Zulip, Saleor, Wagtail, django-CMS and Mezzanine — 16 models and 142
+  fields more, putting the parser under 75 models and 537 fields of real-world
+  Django. Verified byte-identical to upstream blob `cf1e913d` before merge:
+  fixtures are parser *input* for byte-stable snapshots, so an edited copy
+  would quietly rewrite what those snapshots assert. Contributed by
+  [@JJordan0C](https://github.com/JJordan0C) in
+  [#62](https://github.com/FROWNINGdev/django-orm-lens/pull/62), closing
+  [#51](https://github.com/FROWNINGdev/django-orm-lens/issues/51).
+
+## [0.10.1] - 2026-07-30
+
+Extension release, marketplace metadata only — no code change. The listing
+still described the extension as a sidebar and an ER diagram, which is what it
+was two waves ago: impact analysis, blast radius and schema drift had shipped
+and nothing on the store page said so. Someone searching for those never found
+it. The description now names them and says plainly that it is free and MIT
+with no Pro tier, and seven keywords were added (`schema drift`, `impact
+analysis`, `blast radius`, `code review`, `pull request`, `free`,
+`open source`). Both take effect only on publish, which is why they needed a
+release of their own.
+
+## [py-1.9.0] - 2026-07-30
+
+### Fixed
+
+- **The MCP server reported the SDK's version as its own.** `FastMCP` takes no
+  version and forwards none to the low-level `Server`, and the SDK then falls
+  back to `importlib.metadata.version("mcp")` — so every `initialize` response
+  told the client this server was `1.29.0`, the `mcp` release number. Anything
+  keying an integration or a bug report off the reported version was reading
+  the wrong project's. The package version is now set on the server the SDK
+  actually reads, and the tests assert the value that reaches `initialize`
+  rather than the attribute we write, so a future SDK rename fails the suite
+  instead of silently restoring the wrong number.
+
+- **Abstract base fields count as the child's own.** `drift` compared each
+  model's migrations against only what its class body declares, so every model
+  whose columns come from an abstract base looked like it had dropped them.
+  On django-guardian the two permission models reported four fields each as
+  "migrated but no longer declared" — advisory noise on a project with no
+  drift at all. The parser now resolves abstract inheritance the way Django
+  does: an abstract base's fields land on every concrete descendant, a field
+  the child redeclares wins, and a *concrete* base donates nothing because
+  multi-table inheritance leaves the parent's columns on the parent's table.
+  The fields are exposed as `inherited_fields` / `all_fields()`, kept out of
+  the tree and ER output so those keep showing what each class literally
+  declares. Reported by [@sevdog](https://github.com/sevdog) in
+  [#58](https://github.com/FROWNINGdev/django-orm-lens/issues/58).
+
+- **`suggest-index` stops proposing indexes that already exist.** It read
+  `Meta.indexes` and nothing else, so it recommended indexes for the primary
+  key, for `db_index=True` and `unique=True` fields, for foreign keys (Django
+  indexes those itself), and for column groups already covered by
+  `unique_together` or a `UniqueConstraint`. `filter(pk=…)` and `filter(id=…)`
+  were also counted as two different fields when they are one lookup — they
+  now fold onto the real primary-key column. A field left without a proposal
+  for this reason appears under a new `already_indexed` key, so silence is
+  distinguishable from the analyzer having missed the usage.
+  Underlying all of it: the parser truncated any multi-line `class Meta` value
+  to a bare `[`, which is why `constraints` and a list-per-line `indexes` were
+  invisible. Both list and tuple spellings of `fields=` are read.
+  Reported by [@sevdog](https://github.com/sevdog) in
+  [#60](https://github.com/FROWNINGdev/django-orm-lens/issues/60);
+  [@RinZ27](https://github.com/RinZ27) independently diagnosed the same cause
+  in [#61](https://github.com/FROWNINGdev/django-orm-lens/pull/61).
+
+## [py-1.8.1] - 2026-07-29
+
+### Added
+
+- **`drift` explains its own marks.** The text report tagged every entry `!!`
+  or `~` and documented neither, so the only way to learn what they meant was
+  to read `drift.py`. A two-line legend now precedes the entries, the same two
+  lines appear in `drift --help` alongside the exit-code rule, and the legend
+  is imported from the module that prints the marks rather than retyped, so
+  the two cannot fall out of step. No legend on a clean run — nothing is
+  marked there. JSON is unchanged; it always carried `"blocking"` outright.
+  Reported by [@sevdog](https://github.com/sevdog) in
+  [#57](https://github.com/FROWNINGdev/django-orm-lens/issues/57).
+
+## [py-1.8.0] - 2026-07-29
+
+### Added
+
+- **`blast_radius`, `drift` and `impact` are MCP tools now.** The four
+  analyzers added in 1.7.0 shipped to the CLI only, which quietly broke the
+  project's own promise of three surfaces over one parser core: an agent
+  could ask what a model looked like but not what dropping a field would
+  hit. All three are exposed with the same workspace resolution and the same
+  structured error envelope as the existing tools, taking the tool count from
+  ten to thirteen. `blast_radius` accepts an optional `severity`; `impact`
+  requires a `name` and returns `MISSING_NAME` rather than an empty result
+  when it is absent.
+
+## [py-1.7.1] - 2026-07-29
+
+### Fixed
+
+- **`pip install "django-orm-lens[mcp]"` produced a server that would not
+  start.** The extra asked for `mcp>=1.0`, so a fresh install resolved
+  **mcp 2.0.0**, which removed `mcp.server.fastmcp` — the module the server
+  bootstraps from. Every new MCP install since that release printed
+  *"django-orm-lens MCP requires the 'mcp' package"* and exited, while the
+  package was in fact installed. Capped to `mcp>=1.0,<2`; adapting to the 2.x
+  API is separate work. A regression test now pins the upper bound so it
+  cannot be widened without the code changing too.
+  Found because the Glama directory's build failed: it builds the repo's
+  Dockerfile and speaks MCP to the container, which is a stricter check than
+  anything in the test suite, all of which ran against a local mcp 1.28.1.
+- **The published container defaulted to `--help` instead of the MCP server.**
+  Directories that index MCP servers build the Dockerfile and then try to talk
+  to the container over stdio; it printed usage and exited. Only `CMD`
+  changed, so `docker run ... scan --path .` and every other documented CLI
+  invocation behave exactly as before.
+
+## [0.10.0] - 2026-07-29
+
+Extension release. Everything here has been on `main` for some time; the
+webview and security work shipped to the CLI in earlier `py-*` releases while
+the extension binary stayed at 0.9.0, so this is the build that actually puts
+it in front of editor users.
+
+### Fixed
+
+- **Impact Analysis grouped whole projects under the wrong layer.** Layer
+  detection matched patterns like `/tests/` and `/views.py` anywhere in a
+  file's **absolute** path, so a project checked out under any directory
+  called `tests` — or a monorepo with `services/tests/` above it — had every
+  one of its files reported as that layer: `views.py` as a test, `admin.py`
+  as a test. Classification now runs on the path relative to the workspace
+  root, via `layerOf` fed from `workspace.asRelativePath`, so only the
+  project's own layout counts. The CLI half of this fix shipped in py-1.7.0;
+  this is the editor half.
+- **Webview messages are validated by origin rather than by source.**
+- **Security review follow-ups** — the findings from the full-repo review and
+  the open CodeQL alerts, carried over from `6262963` and `984aa22`.
+
+### Added
+
+- **Conflicting leaf migrations are detected** — two migrations claiming the
+  same parent, which Django only complains about at `migrate` time.
+
+## [py-1.7.0] - 2026-07-28
+
+### Added
+
+- **`blast-radius`** — the review-time question the tool could not answer
+  before: *what does this schema change actually hit?* Every destructive
+  migration operation (`RemoveField`, `DeleteModel`, `RenameField`,
+  `RenameModel`, `AlterField`) becomes a target carrying its migration risks,
+  every place in the codebase that still references it, and — for whole-model
+  operations — the cascade fallout. The three analyzers behind it already
+  shipped separately; nobody joined them by hand, so the tool does it now.
+  `--format markdown` emits a ready-to-post PR comment, `--format github`
+  emits annotations naming the reference count in the title, and `--only`
+  narrows the scan to a PR's changed migration files. Exit code `1` on
+  remaining critical risks, matching `migration-risk`. Available through the
+  GitHub Action as `command: blast-radius`.
+- **`drift`** — `makemigrations --check` without booting Django. Each app's
+  migrations are replayed in numeric order into the field set they imply, and
+  compared against what `models.py` declares. Django's own check needs a
+  working settings module, an importable app registry and every dependency
+  installed, so it is unavailable on a cold clone or a broken venv — exactly
+  when acting on the answer is cheapest. Only the dangerous direction fails
+  the build: a field declared but never migrated (the column will not exist,
+  and the first query touching it errors), or a model with no `CreateModel`
+  anywhere. Columns present in the migrations but absent from `models.py` are
+  reported without blocking, because static analysis cannot see fields
+  injected by mixins or metaclass-resolved abstract bases, and failing on
+  those would teach people to pass `--exit-zero` permanently.
+- **`nplusone` now resolves across functions** — the detector used to give up
+  whenever a loop's source was a call rather than an inline chain or a local
+  variable, which is how a large share of real Django code is written: the
+  queryset is built in a helper or in `get_queryset()`, and the loop lives
+  elsewhere. `for post in recent():` is now analysed. Resolution is one hop
+  within the module and covers `helper()`, `self.get_queryset()`,
+  `cls.build()`, a helper returning a local binding, a return from inside an
+  `if`, and a helper defined *after* its caller. Fixes count from either side
+  of the call — `select_related` inside the helper and
+  `recent().select_related(...)` applied by the caller are both silent, since
+  the two chains are spliced before the check. A nested `def`'s return is
+  never attributed to the function enclosing it, and a call to a name the
+  module does not define is left alone rather than assigned an invented
+  model.
+- **`blast-radius --stats` and `stats-sql`** — optional production table
+  statistics, with **no database connection**. `stats-sql` prints a read-only
+  query (`pg_stat_user_tables` + `pg_total_relation_size`, no locks, no user
+  data); you run it against a replica and pass the JSON to `--stats`. The
+  report then says `blog_post: ~41 000 000 rows, 12.0 GB, 4 index(es)`
+  instead of leaning on the "anything after `0001_` is populated" heuristic.
+  A credential never enters CI config and there is nothing to leak; the file
+  can be committed and reviewed like any other input. Numbers are always
+  labelled as estimates — `n_live_tup` drifts between `ANALYZE` runs — and a
+  table absent from the file is reported as **unknown**, never as zero, so a
+  model production has never seen cannot read as "safe to drop".
+  `Meta.db_table` is honoured when resolving a model to its table.
+- **`blast-radius` as a real PR bot** — the Action gained `comment: true`,
+  which posts the markdown report and then *updates that same comment* on
+  every later push, so a twenty-push PR carries one report rather than
+  twenty. Matching is by the `<!-- django-orm-lens: blast-radius -->` marker
+  the renderer emits as its first line. `only-changed: true` narrows the
+  report to migrations the PR actually touches and exits early when it
+  touches none; the file list comes from the API rather than `git diff`,
+  because `actions/checkout` defaults to `fetch-depth: 1` and the base commit
+  is simply not in the local history. The comment is posted *before* the job
+  fails, so a blocked PR still carries the explanation — the exit code is
+  preserved either way. On `push` events both flags skip with a notice
+  instead of failing, so one workflow covers both triggers.
+- **`impact <name>`** — "what still references this field or model?", grouped
+  by Django layer with a `certain` / `likely` / `possibly` confidence tag.
+  The analysis existed only inside the VS Code extension; it now ships in the
+  CLI too, which is what makes `blast-radius` possible in CI.
+- **`er --format dot`** — Graphviz DOT export alongside Mermaid, DBML, D2 and
+  PlantUML, exposed through both the CLI and the MCP `er_diagram` tool. Apps
+  become `subgraph cluster_*` blocks and model bodies are HTML tables rather
+  than record labels, so field names containing `|` or `<` cannot break the
+  render. Useful in particular for projects migrating from
+  `django-extensions graph_models`, which emits the same format.
+  Contributed by [@JJordan0C](https://github.com/JJordan0C) in
+  [#53](https://github.com/FROWNINGdev/django-orm-lens/pull/53) — the project's
+  first outside contribution. Closes
+  [#48](https://github.com/FROWNINGdev/django-orm-lens/issues/48).
+- **Vietnamese rule reference** — `docs/i18n/rules/vi/` covers the queryset
+  family `DOL001`–`DOL007`, the first translation of the rule pages into any
+  language. Code samples, rule codes and suppression syntax stay identical to
+  the English source so they remain copy-pasteable and greppable. Contributed
+  by [@RinZ27](https://github.com/RinZ27) in
+  [#54](https://github.com/FROWNINGdev/django-orm-lens/pull/54), against
+  [#52](https://github.com/FROWNINGdev/django-orm-lens/issues/52).
+
+### Fixed
+
+- **Layer detection no longer reads the checkout path** — impact analysis
+  classifies a file by matching patterns like `/tests/` and `/views.py`
+  against its path, and it was matching the *absolute* path. A project
+  checked out under any directory called `tests` (or `api`, `forms`, …) had
+  every one of its files classified into that layer — `views.py` reported as
+  `tests`, and so on, in the Impact Analysis panel. Classification now runs
+  on the path relative to the workspace root, so only the project's own
+  layout counts. Fixed in both implementations: the CLI analyzer and the
+  VS Code extension (`layerOf`, which the extension feeds from
+  `workspace.asRelativePath`). Caught by the first end-to-end run of
+  `blast-radius`, whose fixture happens to live under `cli/tests/`.
+- **DOL005 and DOL006 documentation** — DOL005 claimed the `Q(...)` rewrite
+  buys "one pass for the query planner"; Django already compiles the chained
+  form into a single query, so the rule is a legibility hint and now says so.
+  DOL006 claimed `list(qs)` builds "a second in-memory copy of every row"; it
+  does not duplicate the model instances, and dropping the wrapper does not
+  give you streaming — that still needs an explicit `.iterator()`. Both had
+  been wrong since the rules shipped, and surfaced during review of #54.
+
+## [py-1.6.0] - 2026-07-28
+
+### Added
+
+- **`conflicting_migration_leaves`** (migration-risk rule 16) — flags an app
+  whose migration graph has more than one leaf, the state Django rejects with
+  "Conflicting migrations detected; multiple leaf nodes in the migration
+  graph". Two branches each adding a migration on the same parent produce it.
+  Detected from the `dependencies` tuples alone, so it fires on a cold clone
+  and in CI rather than waiting for someone to run `migrate` against a real
+  database. Reported once per conflicting leaf, and inherits the existing
+  SARIF and GitHub-annotation output. The Django app *label* is recovered from
+  the dependencies, since `AppConfig.label` may differ from the package
+  directory; the rule stays silent when that is ambiguous.
+- **Sidebar visibility toggles** — checkboxes on apps and models. Unchecking
+  hides the item from the ER diagram, cascading from an app to its models, and
+  relations pointing at a hidden model are dropped so no edge dangles. The
+  state persists per workspace, and stores what is *hidden* rather than what is
+  visible, so a model added later shows up instead of silently disappearing.
+
+### Fixed
+
+- The ER webview reloaded a cached `graph.js`: the script URI never changed
+  between builds, so a rebuilt bundle could not reach the panel. Cache-busted
+  on the bundle's mtime.
+
+## [py-1.5.1] - 2026-07-28
+
+### Fixed
+
+- `python -m django_orm_lens` now works. The package shipped without a
+  `__main__.py`, so the module invocation failed with "No module named
+  django_orm_lens.__main__" even though the `django-orm-lens` console script
+  was fine. `python -m` is the invocation that does not depend on the scripts
+  directory being on PATH, which is what CI images, tox environments and fresh
+  venvs rely on. Two regression tests cover it.
+
+## [py-1.5.0] - 2026-07-28
+
+The "one core, three surfaces" wave: the CLI gains CI-native output formats,
+four analyzers that were previously MCP-only, community-standard diagram
+exports, and a documentation page for every rule.
+
+### Added
+
+- **CI output formats** — `nplusone` and `migration-risk` accept
+  `--format sarif` (SARIF 2.1.0 for GitHub Code Scanning via
+  `upload-sarif`) and `--format github` (workflow-command PR annotations,
+  zero extra permissions). New module `ci_formats.py`; 20 tests.
+- **Four new CLI subcommands** exposing analyzers that existed only behind
+  MCP: `suggest-indexes <model>` (Meta.indexes proposals from observed
+  QuerySet usage), `signals` (sender→signal→handler graph),
+  `migration-deps <app>` (per-app migration DAG — text/json/mermaid),
+  `cascade <model>` (delete blast-radius grouped by on_delete). Cascade
+  logic moved into shared `models.cascade_preview` so the CLI and the MCP
+  server can never drift.
+- **ER diagram export formats** — `er --format dbml | d2 | plantuml`
+  alongside the Mermaid default; the MCP `er_diagram` tool takes the same
+  choice via a new optional `diagram_format` argument. DBML maps
+  `on_delete` onto ref settings and apps onto schemas; D2 uses `sql_table`
+  shapes with apps as containers; PlantUML uses crow's-foot entities.
+  Explicit `primary_key=True` is respected; Django's implicit `id` is
+  synthesized otherwise. 11 tests.
+- **Three new migration-risk rules** (15 total): `runpython_no_reverse`
+  (data migration without reverse_code), `alter_unique_together_lock`
+  (unique index build/validation on a populated table — recognises all
+  four clearing forms including Django's serialized `set()`), and
+  `alter_index_together_deprecated` (operation removed in Django 5.1).
+- **pre-commit hooks** — `.pre-commit-hooks.yaml` with
+  `django-orm-lens-nplusone` and `django-orm-lens-migration-risk`, plus a
+  root pyproject shim so pre-commit can install the repo directly.
+- **GitHub Action** — composite `action.yml`
+  (`uses: FROWNINGdev/django-orm-lens@<ref>`) wrapping the CLI with
+  annotation/SARIF-friendly defaults.
+- **docs/rules/** — 19 documentation pages: one per DOL rule (16), the
+  migration-risk catalogue, the N+1 analyzer, and an index. Fixes the 16
+  dead `docsUrl` links the Problems panel has been shipping.
+- **Golden snapshot suite** — full parser-output snapshots for the five
+  vendored real-world projects (59 models, 13,478 LOC); parser regressions
+  now fail with a diff instead of passing silently.
+  `UPDATE_GOLDEN_SNAPSHOTS=1` regenerates.
+- **Manifest-sync test** — pyproject / server.json / smithery.yaml versions
+  and the MCP tool count vs docstring can no longer drift.
+- **CI lint job** — ruff + mypy on every push/PR, both starting green
+  (433 ruff findings fixed, 9 mypy errors fixed across 5 files).
+
+### Fixed
+
+- `AlterUniqueTogether` clearing form `unique_together=set()` — the form
+  `makemigrations` actually writes — no longer raises a false
+  `alter_unique_together_lock`.
+- MCP tool-count drift: 9 → **10 tools** everywhere (module docstring,
+  section comment, `smithery.yaml` 1.2.7 → 1.4.0 with "10 read-only
+  tools", `cli/README.md`).
+- README accuracy: MCP table lists all 10 tools (was 5), migration-risk
+  rule count corrected ("7 classes" → 15 rules), stale v0.8 labels
+  removed.
+- DBML export notes are workspace-relative — no absolute machine paths in
+  shareable diagrams.
+
+### Changed
+
+- README repositioned as "The schema intelligence layer for Django":
+  10-second `uvx` quickstart, a Gate-your-CI section, a measured
+  performance section (59 real-world models / 13,478 LOC parsed in ~21 ms
+  best-of-3 locally), honest "when you want something else" boundaries,
+  and the rule catalogue moved to `docs/rules/`.
+- `migration-risk` severity filtering computes its threshold only for
+  explicit severities instead of relying on a `.get(..., 99)` fallback
+  for `--severity all`.
+
+### Removed
+
+- `media/vendor/mermaid.min.js` (3.34 MB) — dead weight since the webview
+  moved to React Flow; the VSIX shrinks accordingly.
+
+## [py-1.4.0] - 2026-07-25
+
+Adds the tenth MCP tool: **`nplusone_scan`** — a static scan for Django ORM
+N+1 anti-patterns across the workspace. Wraps the existing
+`query_analyzer.scan_for_nplusone` (which had 100% CLI-level test coverage
+via `test_nplusone_detector.py`) as an MCP handler so AI coding agents can
+ask "are there N+1 problems in this project?" and get actionable answers
+with `path:line`, the queryset variable, which related fields were
+accessed, and a suggested `select_related` / `prefetch_related` fix.
+
+### Added
+
+- **`nplusone_scan` MCP tool** — walks every `.py` file, finds
+  `for x in <queryset>:` loops, and flags attribute-chain accesses against
+  the loop target that touch a related object (FK / O2O / M2M / reverse FK)
+  without a matching `select_related` / `prefetch_related` clause on the
+  source queryset. Uses the parsed `WorkspaceIndex` to classify relations;
+  falls back to a schema-less heuristic when a model is unknown.
+- **Structured findings** — returns `[{file, line, loop_var, queryset_var,
+  accessed, suggested_fix, confidence}]` where `confidence` is `"high"` or
+  `"medium"`. Same `WorkspaceError` envelope pattern as the other 9 tools
+  on workspace-resolution failure.
+- **Tests** — 2 new tests in `test_mcp_server.py` (envelope on invalid
+  workspace + happy-path detection against a textbook `for book in
+  Book.objects.all(): print(book.author.name)` pattern). Full Python suite:
+  **238 passed** (was 236), zero regressions. Existing 40+ unit tests in
+  `test_nplusone_detector.py` continue to pin scanner behaviour.
+
+### Changed
+
+- **`server.json` description** — bumped tool count from 9 to 10 with the
+  N+1 scanner mention, so MCP Registry + Smithery listings advertise the
+  new capability accurately.
+
+## [py-1.3.0] - 2026-07-25
+
+Professional-grade fix for the workspace-resolution silent-drop bug. Before
+1.3.0 every MCP tool function was registered without a ``workspace_root``
+parameter in its Python signature — FastMCP therefore treated any
+``workspace_root`` kwarg passed by an AI agent as an unknown argument and
+silently discarded it, then fell back to ``$DJANGO_ORM_LENS_ROOT`` or
+``os.getcwd()``. Cursor, Claude Desktop and Aider intuitively call
+``list_apps(workspace_root="...")``; the argument vanished, the tool returned
+``[]``, and the agent concluded the server was broken. Root cause verified
+against microsoft/AL#8273, openai/codex#9989, aws-toolkit-jetbrains#6173,
+kirodotdev/Kiro#5662 and modelcontextprotocol/python-sdk#1097 — every one is
+the same class of silent-workspace-drop symptom.
+
+### Added
+
+- **``workspace_root`` argument on all 9 MCP tools.** Declared in every
+  handler signature so FastMCP includes it in the ``inputSchema`` served to
+  ``tools/list`` — agents now see it as a first-class parameter and its
+  value reaches the resolution helper unchanged.
+- **New ``django_orm_lens.workspace`` module.** Single home for resolution,
+  path hardening, and caching. Priority chain: explicit argument →
+  ``$DJANGO_ORM_LENS_ROOT`` → current working directory. A failure at any
+  chosen source is surfaced immediately instead of falling through — that
+  silent fall-through is exactly what produced the pre-1.3.0 bug.
+- **Path hardening.** ``os.path.expanduser`` + ``expandvars`` +
+  ``Path.resolve()`` collapses ``..`` traversal and follows symlinks before
+  any validation. Windows reserved device names (``CON``, ``PRN``, ``AUX``,
+  ``NUL``, ``COMn``, ``LPTn``) are rejected on every OS because paths flow
+  between machines. Django-marker requirement (``manage.py`` /
+  ``manage.pyw`` / ``django`` in ``pyproject.toml`` / any ``models.py`` in
+  the tree) rejects agent typos before they scan the wrong directory.
+- **Optional allowlist.** ``DJANGO_ORM_LENS_ALLOWED_ROOTS`` (``;``-separated
+  on Windows, ``:``-separated elsewhere) restricts which prefixes the agent
+  may resolve to. Empty / unset preserves the historical unrestricted
+  behaviour.
+- **Structured error envelope.** Every failure now returns
+  ``{"error": "WORKSPACE_...", "message": "...", "hint": "...", "path": "..."}``
+  as the tool result — agents get an actionable message instead of ``[]``.
+  Stable error codes: ``WORKSPACE_EMPTY``, ``WORKSPACE_NOT_FOUND``,
+  ``WORKSPACE_NOT_A_DIRECTORY``, ``WORKSPACE_NOT_DJANGO``,
+  ``WORKSPACE_NOT_ALLOWED``, ``WORKSPACE_WINDOWS_RESERVED``,
+  ``WORKSPACE_RESOLVE_FAILED``.
+- **Compound cache key.** Index cache is now keyed by
+  ``(resolved_absolute_path, manage.py mtime)`` — touching ``manage.py``
+  invalidates on the next call without waiting for the 30 s TTL. Cache is
+  LRU-capped at 8 workspaces so multi-project agents (Cursor with several
+  folders open) can't unbounded-grow memory.
+- **Tests:** ``test_mcp_workspace.py`` (23 unit tests: hardening, priority
+  chain, allowlist, cache) + ``test_mcp_server.py`` (22 integration tests +
+  18 subtests: registry contract, error envelope on every tool, happy path
+  equivalence). Full Python suite: **236 passed** (up from 191), zero
+  regressions. TS suite: 104/104 green (unchanged).
+
+### Referenced upstream
+
+- <https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem>
+  — reference implementation of workspace hardening and containment (path
+  resolve + allowlist), whose semantics this fix ports to Python.
+- <https://github.com/modelcontextprotocol/servers-archived/tree/main/src/git>
+  — reference example of per-tool ``repo_path`` argument that inspired the
+  explicit-argument-first priority chain.
+- <https://github.com/microsoft/AL/issues/8273>,
+  <https://github.com/openai/codex/issues/9989>,
+  <https://github.com/aws/aws-toolkit-jetbrains/issues/6173>,
+  <https://github.com/kirodotdev/Kiro/issues/5662> — real-world reports of
+  the identical silent-workspace-drop bug in adjacent MCP servers.
+- <https://github.com/modelcontextprotocol/python-sdk/issues/1097> — the
+  ``roots/list`` deadlock that motivated the deliberate choice to keep this
+  release synchronous and defer MCP-roots integration.
+
+## [0.9.0] - 2026-07-24
+
+Schema-diff gets a first-class **partial UniqueConstraint** tracker. Inspired
+by django-extensions [#1813](https://github.com/django-extensions/django-extensions/issues/1813)
+(BoPeng, 2023) — `sqldiff` drops the `condition=` predicate from
+`UniqueConstraint` output, so migration reviewers never see what actually
+changed. Django ORM Lens now surfaces these as typed events so PR diffs stop
+lying.
+
+### Added
+
+- **`PartialUniqueConstraint` schema-diff event with four ops:**
+  - `add` — new conditioned `UniqueConstraint` appeared in the new snapshot
+  - `drop` — constraint existed only in the old snapshot
+  - `change` — same name, condition (or field list) mutated; `fromCondition`
+    carries the pre-change predicate so the review comment can show
+    `Q(is_primary=True) → Q(is_primary=True, deleted=False)`
+  - `rename` — same fields + same condition, only the name changed; renamed
+    constraints no longer show up as a lossy `add + drop` pair
+- **Anonymous-safe.** Multiple unnamed constraints on the same model no longer
+  collapse into a single event — internal keying falls back to `#anon-<index>`.
+- **Markdown rendering** grew four dedicated bullet variants (`**added** …`,
+  `**dropped** …`, `**changed** …`, `**renamed** …`) so the PR description
+  reads like a review comment, not a raw diff.
+- **Tests:** 4 new snapshot tests for each op variant (add / drop / change /
+  rename). Schema-diff suite: 17/17 green; full TS suite: 104/104 green.
+
+### Referenced upstream
+
+- <https://github.com/django-extensions/django-extensions/issues/1813> —
+  root-cause description + reproducer + workaround acknowledged in
+  [comment #5062767387](https://github.com/django-extensions/django-extensions/issues/1813#issuecomment-5062767387).
+
+## [0.7.8] - 2026-07-21
+
+Marketplace SEO polish — no runtime changes, no behaviour changes. VS Code extension only (CLI/MCP unchanged, still on py-1.2.7).
+
+### Changed
+
+- **VS Code Marketplace metadata refreshed** for better discoverability.
+  - `description` rewritten to lead with the value ("See your entire Django schema in your editor") instead of the feature list.
+  - `categories` expanded from `[Visualization, Other]` → `[Visualization, Programming Languages, AI, Other]` to surface in more Marketplace filters.
+  - `keywords` expanded from 7 → 29 with real search terms users type: `erd`, `entity relationship`, `schema visualizer`, `model explorer`, `foreign key`, `n+1`, `query optimization`, `mcp`, `ai agent`, `cursor`, `vscodium`, `postgresql`, `django-rest-framework`, and more.
+  - Added `galleryBanner` (`#0c4b33` Django-green) — the extension page now has a themed header instead of default grey.
+  - Added `qna: "marketplace"` (enable built-in Q&A) and `sponsor.url` (GitHub Sponsors link surfaced in the sidebar).
+- **CI:** GHCR `Wait for PyPI` step widened 5 min → 15 min. The `py-v1.2.7` publish raced the PyPI CDN and the container step failed at the pip install; wider window makes future releases robust to slow PyPI propagation.
+
+## [0.7.7] + [py-1.2.7] - 2026-07-21
+
+### Fixed
+
+- **UTF-8 BOM (`U+FEFF`) at the start of a models.py file no longer eats the whole class.** Windows editors — Notepad, older Sublime, VS Code with certain encoding settings — save files with a byte-order mark. Without this fix the first line becomes `"﻿class Foo..."` and `CLASS_RE` fails to match, so every model in the file silently disappears. Both parsers now strip the leading BOM in the content-read step.
+
+### Added
+
+- **`test_bom_prefix.py`** — 2 Python regression tests (BOM-prefixed file parses; no-BOM backward-compat).
+
+## [0.7.6] + [py-1.2.6] - 2026-07-21
+
+### Fixed
+
+- **Tab-indented model bodies now parse.** Editors that default to tabs (or projects that use PEP-8 exceptions with tabs) had every field silently dropped. `FIELD_RE` uses `\s{indent}` as its column prefix and `_detect_class_indent` correctly returns width 4 for tabs, but a single `\t` character is only one `\s` match, not four. Fixed by pre-expanding tabs to 4 spaces in the line buffer before regex matching. Applies to both parsers. Line numbers preserved (per-line expansion only).
+
+### Added
+
+- **`test_tab_indented_models.py`** — 3 Python regression tests (pure-tab body, mixed tab+space, and space-indent backward-compat).
+
+## [0.7.5] + [py-1.2.5] - 2026-07-21
+
+Two more field-detection gaps closed via targeted fuzz of realistic Django user code.
+
+### Fixed
+
+- **Aliased `models` module.** `from django.db import models as m` followed by `class X(m.Model): x = m.CharField(...)` used to lose every field because `FIELD_RE` hardcoded the `models\.` prefix and `BARE_FIELD_RE` had no prefix allowance. Both parsers now accept any single-identifier prefix on the RHS in `BARE_FIELD_RE`.
+- **Third-party field packages.** Fields declared via a namespaced third-party import (`x = jsonfield.JSONField(...)`, `x = timezonefield.TimeZoneField(...)`, `x = arrayfield.ArrayField(...)`) fell through the same gap. Same fix covers both cases in one edit — the type name is still restricted to Django's known field whitelist, so random non-Django calls like `foo.CharField(...)` in an unrelated module don't leak in.
+
+### Added
+
+- **`test_aliased_module_and_third_party_fields.py`** — 4 Python regression tests (aliased-only, mixed aliased+plain+bare interleaved, jsonfield-style third-party, and backward-compat bare imports).
+
+## [0.7.4] + [py-1.2.4] - 2026-07-21
+
+Follow-up to the modern-Python audit that produced 0.7.3 — another shape of typed code that used to silently vanish, surfaced by a targeted fuzz of the class-header regex.
+
+### Fixed
+
+- **PEP-695 generic class headers (Python 3.12+) now parse.** The class-header regex was:
+
+  ```
+  ^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:
+  ```
+
+  which had no allowance for a `[T]` group between the class name and the opening `(`. Any model declared as `class Container[T](models.Model):` failed to match — the parser walked past the whole class, no models reported, empty sidebar / ER diagram / n+1 output. Applies to all four common PEP-695 shapes: single-param `[T]`, multi-param `[K, V]`, bounded `[T: str]`, and variadic + paramspec `[*Ts, **P]`.
+
+  Fixed by inserting an optional `(?:\s*\[[^\]]*\])?` group in both `CLASS_RE` and `CLASS_START_RE`, in both parsers (Python + TypeScript). Non-generic classes match identically as before.
+
+### Added
+
+- **`test_pep695_generic_classes.py`** — 5 Python regression tests covering the four PEP-695 shapes plus a backward-compat guard for plain class headers.
+
+## [0.7.3] + [py-1.2.3] - 2026-07-20
+
+Bugfix release for [#25](https://github.com/FROWNINGdev/django-orm-lens/issues/25) — thanks to [@jsabater](https://github.com/jsabater) for the reproducible report against a Django Ninja 1.6 codebase.
+
+### Fixed
+
+- **Fields with PEP-526 type annotations (typed Django / Django Ninja style) no longer disappear from the parser output.** When code uses the modern typed pattern:
+
+  ```python
+  jti: CharField[str] = models.CharField(max_length=32, unique=True)
+  ```
+
+  the field regex expected `name = models.X(` and had no allowance for a `: <type>` group between the name and the `=`. Result: fields silently vanished from the sidebar tree, the ER diagram entity, and every downstream tool (n+1 detector, MCP `describe_model`, `find_relations`). Adding fields one-by-one made the whole model progressively empty — the exact reproduction jsabater observed.
+
+  Fixed in both parsers (`parser.py::_build_body_regexes`, `src/parser.ts::buildBodyRegexes`) by adding an optional `(?:\s*:[^=]+)?` group after the field name and before `=`. `[^=]+` is safe because `=` never appears inside a Python type expression (subscripts, unions, dotted refs, and generics all use other punctuation). Applied consistently to `FIELD_RE`, `BARE_FIELD_RE`, and `META_ITEM_RE`.
+
+### Added
+
+- **`test_pep526_type_hints.py`** — 6 Python regression tests covering the exact snippet from the bug report, the bare-import form (`IntegerField` without `models.` prefix), simple non-generic annotations (`label: str = ...`), untyped backward-compat, and a Meta block with an annotated attribute (`ordering: list[str] = ["title"]`).
+- **`test/pep526.test.js`** — matching TS regression so the VS Code extension stays behaviour-compatible with the CLI.
+
+## [py-1.2.2] - 2026-07-20
+
+CLI welcome UX — bidirectional discoverability between PyPI and the editor extensions. Data motivation: PyPI is doing ~1,663 installs/week while the VS Code Marketplace sits at ~10 installs total. Users who install the CLI don't know the extension exists (and vice-versa in the extension welcome view). This closes the gap.
+
+### Changed
+
+- **`django-orm-lens` welcome (no-arg run)** now prints a "prefer a visual sidebar + ER diagram in your editor?" block after the docs link, with copy-paste install commands for both marketplace paths:
+  - `code --install-extension frowningdev.django-orm-lens` — VS Code / Cursor / Windsurf
+  - `codium --install-extension frowningdev.django-orm-lens` — VSCodium / code-server / Gitpod / any OSS Code fork (via Open VSX)
+
+  Rest of the welcome (commands table + star CTA) is unchanged.
+
+## [py-1.2.1] - 2026-07-20
+
+Patch release — two crash bugs in the CLI wrapper that unit tests missed because they exercised the underlying helpers directly instead of going through argparse dispatch. Both surfaced during an end-to-end smoke run against a real Django codebase.
+
+### Fixed
+
+- **`django-orm-lens nplusone` crashed with `NameError`** — `_cmd_nplusone` called `_build_schema_from_index` and `scan_for_nplusone` without importing either at module scope. `scan_for_nplusone` now imported at the top of `cli.py`; the intermediate schema flattening is dropped (the underlying function already accepts a `WorkspaceIndex` and normalises internally via `_normalise_schema`).
+- **`django-orm-lens migration-risk` (text format) crashed with `AttributeError: 'MigrationRisk' object has no attribute 'filePath'`** — the print statement used camelCase attrs (`filePath` / `lineNumber`) but the dataclass fields are snake_case (`file_path` / `line_number`). The camelCase form only exists inside `to_dict()` (JSON path); text output now reads the snake_case fields directly.
+- **`analyze_migration_risks` was not imported at module scope** — same pattern as the nplusone bug, fixed at the same time to prevent a latent `NameError` on the next code path change.
+
+### Added
+
+- **`test_cli_subcommands_smoke.py`** — 8 tests that dispatch every subcommand (`scan`, `list`, `er`, `describe`, `hover`, `nplusone`, `migration-risk` text + JSON) through `main([...])` against fixture data. Any `NameError` / `ImportError` / `AttributeError` in a subcommand body now surfaces as a test failure rather than a crash the next user sees. This closes the coverage gap that let both v0.7.0 bugs ship.
+
+## [0.7.0] + [py-1.2.0] - 2026-07-20
+
+Correctness release focused on `settings.AUTH_USER_MODEL` resolution across every layer (parser / signals / query analyzer / ER diagram / MCP server / VS Code webview) and kwarg-order-independent field parsing. 10 bugs closed + 4 DRY/perf refactors + 36 new regression tests. All 157 Python tests + 3 TypeScript tests green.
+
+### Fixed
+
+- **`ForeignKey(on_delete=CASCADE, to='User')` now resolves correctly regardless of kwarg order.** Both the Python (`_extract_related` in `parser.py`) and TypeScript (`extractRelated` in `src/parser.ts`) parsers previously used a positional-first regex that either returned `undefined` or misread `on_delete` as the target when `to=` wasn't the first kwarg. Python side now uses `ast.parse` on the wrapped arg block; TypeScript side prefers `\bto=` anywhere and falls back to positional-first with a negative lookahead against kwargs. Similar order-independence applied to `_extract_on_delete` / `_extract_related_name` / `_extract_through_model`.
+- **`settings.AUTH_USER_MODEL` resolves to the workspace User model in every consumer, not just the MCP layer.** Previously, `.split('.')[-1]` produced `"AUTH_USER_MODEL"` — a name no workspace model carries — dropping User-model edges from: reverse-relation schema used by the n+1 detector (`query_analyzer._build_schema_from_index` + `_build_schema_from_index_dict`), signal receiver resolution (`signals_parser._resolve_sender`), Mermaid ER diagram (`cli._build_mermaid`), VS Code Mermaid webview (`src/graphWebview.ts`), VS Code inbound-relation panel (`src/extension.ts`), and the React ER webview (`src/webview/graph.tsx`). All six paths now delegate to shared `resolve_related_tail` (Python) / `resolveRelatedTail` (TypeScript). The webview additionally receives the pre-resolved User name via the wire payload so it doesn't need `baseClasses` shipped over.
+- **`--verbose` no longer walks the workspace twice.** The scan summary previously called `_iter_python_files` a second time just to count files. `WorkspaceIndex` now carries `scanned_files` (populated by `scan_workspace`), so verbose mode reads the count instead of re-iterating — noticeable on large monorepos.
+- **`formatters._render_table` no longer crashes on short rows.** A row shorter than the header triggered `IndexError` inside the width-computation genexpr. Rows are now padded with `""` to header width before rendering.
+
+### Added
+
+- **Shared Python helpers under `django_orm_lens` package root:** `find_user_model`, `find_user_model_from_dict`, `resolve_related_tail`, `find_model`, `iter_workspace_py_files`, `BROAD_SKIP_DIRS`. Downstream tools that build on the parser can import these without duplicating the User-model detection heuristic or the walk-skip-list.
+- **Shared TypeScript helpers in `src/parser.ts`:** `findUserModel(index)`, `resolveRelatedTail(related, userName)`. Same shape as the Python side so the VS Code extension and the CLI stay in sync.
+- **`WorkspaceIndex.scanned_files: int`** — number of `models.py`-style files inspected during the scan. Surfaced in `to_dict()` as `scannedFiles`. Backward-compatible (default 0, extra JSON key).
+- **`WireIndex.userModelName?: string`** in `src/webview/types.ts` — resolved User model name shipped to the React webview so it can rewrite `settings.AUTH_USER_MODEL` edges to point at the right node.
+- **36 regression tests:** `test_kwarg_order_and_auth_user.py` (35 unit tests covering kwarg-order-independent extractors, User-model discovery, tail resolution, schema-building with AUTH_USER_MODEL, `_resolve_sender` cases) + `test_signals_parser::test_receiver_settings_auth_user_sender_resolves` (E2E `signal_graph`) + `test/kwarg-order.test.js` (TS regression).
+
+### Changed
+
+- **`_iter_py_files` consolidated across three modules.** `signals_parser`, `query_analyzer._iter_py_files`, and `query_analyzer._iter_py_files_broad` were three near-identical copies of the same directory walk with slightly different skip-lists. All three now delegate to `parser.iter_workspace_py_files(root, extra_skip=frozenset())`.
+- **`_find_model` / `_find` consolidated.** `cli._find_model` and `mcp_server._find` were near-identical `WorkspaceIndex` lookups by `"app.Model"` or bare `"Model"`. Both now delegate to `models.find_model` so lookup semantics stay in sync.
+- **`mcp_server._workspace_user_model` and `_rel_matches_target`** are now thin wrappers over the shared `find_user_model` + `resolve_related_tail`. Semantics unchanged; the tuple-returning signature of `_workspace_user_model` is preserved for existing callers.
+
+## [0.6.0] + [py-1.1.0] - 2026-07-19
+
+Feature release — three new CLI subcommands (`nplusone`, `migration-risk`, `diff`), webview polish, and three README translations. 127 tests passing.
+
+### Added
+
+- **CLI `nplusone` subcommand — static N+1 detector.** Walks `.py` files and flags queryset iteration where FK / M2M attributes are accessed inside the loop without a matching `.select_related(...)` / `.prefetch_related(...)`. Schema-backed high-confidence classification when a workspace index is available, heuristic medium-confidence fallback otherwise. Reports `file:line`, loop variable, queryset variable, accessed relations, and a suggested fix. Flags: `--path`, `--format text|json`, `--confidence high|medium|all`, `--exit-zero`. Exit code 1 on findings (CI-friendly). 18 tests.
+- **CLI `migration-risk` subcommand — production-safety linter for Django migrations.** Analyzes `<app>/migrations/*.py` files and flags seven classes of risky operations: `AddField(NOT NULL, no default)`, `RemoveField`/`DeleteModel` still referenced by live code, `RenameField`/`RenameModel` (breaks rolling deployments), `AddIndex` without `CONCURRENTLY`, lossy `AlterField` type changes, `RunSQL` without `reverse_sql`, and `AddField(unique=True)` without a row-unique default. Cross-references the current models schema. Per-finding severity (`critical` / `warning` / `info`) and confidence (`high` / `medium` / `low`). Flags: `--path`, `--format text|json`, `--severity critical|warning|info|all`, `--exit-zero`. 31 tests.
+- **CLI `diff` subcommand — compare two schema JSON dumps.** `django-orm-lens list --format=json > before.json` on `main`, then again on a PR branch → `after.json`, then `django-orm-lens diff before.json after.json` prints added / removed models, added / removed / changed fields, and added / removed / changed relations. Text and JSON output. Exit 1 on any delta (git-diff-like), `--exit-zero` for advisory CI stages. 21 tests.
+- **Webview: color-code minimap dots by app.** ER-diagram minimap now tints nodes by their owning Django app using a deterministic FNV-1a-based hue, so large schemas can be visually grouped at a glance. Focused node retains the accent color.
+- **CLI `list` subcommand now supports `--format json`.** `django-orm-lens list --format json` emits a pipe-friendly JSON array `[{"app": "...", "model": "..."}, ...]`. The default `text` output remains unchanged for backward compatibility.
+- **`--verbose` / `-v` flag** on every scan-backed CLI subcommand (`scan`, `describe`, `hover`, `list`, `er`). Prints a one-line summary to stderr after the scan — `scanned 12 files in 34ms, found 8 apps / 47 models` — sourced from the actual file walk, a `time.perf_counter()` measurement around the scan, and the real app/model counts on the returned index. Stdout is untouched either way. (#14)
+- **CLI: friendlier hint when no `models.py` is found.** `scan`/`describe`/`hover`/`list`/`er` previously printed a silently-empty result. When zero models are found *and* no `models.py`/`models/*.py` file was walked at all, a `hint: no models.py found under <path>...` line is now printed to stderr (stdout stays clean, exit code stays `0`). New `--quiet`/`-q` flag suppresses the hint. (#12)
+
+### Docs
+
+- **README translations:** `README.ru.md` (Russian), `README.es.md` (Spanish), `README.zh.md` (Chinese). Language switcher added at the top of each file. Closes #9, #10, #11.
+- **README: added Screenshots section** between Install and The problem, with capture instructions for six product screenshots covering VS Code (sidebar / ER diagram / hover card), CLI (`list`, `er`), and MCP (Cursor conversation). Closes #15.
+
 ## [0.5.1] + [py-1.0.17] - 2026-07-16
 
 Bugfix release focused on parser accuracy and MCP correctness. E2E audit against a synthetic Django project with abstract mixins, custom user model, multi-file `models/` packages, real migrations, signals, and views uncovered five real bugs that would have hit the ~60 % of production Django codebases that use `TimeStampedModel`-style mixins or `settings.AUTH_USER_MODEL`. All fixed here without any behavioural regressions (44 pytests pass — 13 new + 31 pre-existing).

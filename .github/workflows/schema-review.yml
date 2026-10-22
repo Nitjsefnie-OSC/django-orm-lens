@@ -1,0 +1,39 @@
+name: Schema review
+
+# Dogfooding: the repo runs its own blast-radius on every PR that touches a
+# migration. Uses the checked-out action (`./`) rather than the published tag,
+# so a change to action.yml is exercised in the same PR that makes it — a tag
+# can only ever prove what was already released.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  blast-radius:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Install the checkout, not the release. The action installs from PyPI by
+      # default, which can only ever expose commands that have shipped — so a
+      # workflow verifying unreleased work has to bring its own build, or it
+      # silently tests the last release instead of this PR.
+      - run: pip install ./cli
+
+      # A fixture app dedicated to this workflow. Deliberately NOT the one the
+      # unit tests assert on: pointing both at the same app means any PR that
+      # adds a migration to exercise the bot also breaks tests that pin exact
+      # target counts, which is precisely what happened the first time.
+      - uses: ./
+        with:
+          command: blast-radius
+          install: false
+          path: cli/tests/fixtures/live_check
+          args: --severity all --exit-zero
+          only-changed: true
+          comment: true
+          github-token: ${{ github.token }}

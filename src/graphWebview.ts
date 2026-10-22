@@ -1,7 +1,9 @@
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { randomBytes } from 'crypto';
 import { WorkspaceIndex } from './types';
+import { findUserModel, resolveRelatedTail } from './parser';
 
 // Kept exported for CLI parity — the Python side still emits Mermaid, and
 // downstream tests import this symbol.
@@ -32,12 +34,16 @@ export function buildMermaid(index: WorkspaceIndex): string {
     }
   }
 
+  const userModel = findUserModel(index);
+  const userModelName = userModel?.name;
   for (const app of index.apps) {
     for (const model of app.models) {
       for (const f of model.fields) {
         if (!f.isRelation || !f.relatedModel) continue;
         const target =
-          f.relatedModel === 'self' ? model.name : f.relatedModel.split('.').pop()!;
+          f.relatedModel === 'self'
+            ? model.name
+            : resolveRelatedTail(f.relatedModel, userModelName)!;
         if (!modelNames.has(target)) continue;
         const arrow =
           f.relationKind === 'ManyToManyField'
@@ -79,6 +85,7 @@ function buildIndexPayload(index: WorkspaceIndex): Record<string, unknown> {
   const workspaceName =
     vscode.workspace.workspaceFolders?.[0]?.name ??
     (vscode.workspace.name ? vscode.workspace.name : 'workspace');
+  const userModelName = findUserModel(index)?.name;
   return {
     apps: index.apps.map((app) => ({
       name: app.name,
@@ -104,6 +111,7 @@ function buildIndexPayload(index: WorkspaceIndex): Record<string, unknown> {
     scannedAt: index.scannedAt,
     workspaceName,
     theme: resolveTheme(),
+    userModelName,
   };
 }
 
@@ -147,6 +155,29 @@ function makeNonce(): string {
   return randomBytes(24).toString('base64').replace(/[^A-Za-z0-9]/g, '');
 }
 
+// `html-to-image` hands back two different data-URL flavours: `toPng` produces
+// `data:image/png;base64,…` while `toSvg` produces
+// `data:image/svg+xml;charset=utf-8,<percent-encoded markup>`. Decoding the
+// latter as base64 does not throw — the decoder simply drops `%`, `<` and every
+// other non-alphabet character — so the .svg used to land on disk as garbage.
+export function decodeExportPayload(dataUrl: string): Buffer {
+  const comma = dataUrl.indexOf(',');
+  if (!dataUrl.startsWith('data:') || comma < 0) {
+    return Buffer.from(dataUrl, 'utf-8');
+  }
+  const params = dataUrl.slice('data:'.length, comma).split(';');
+  const body = dataUrl.slice(comma + 1);
+  if (params.some((p) => p.trim().toLowerCase() === 'base64')) {
+    return Buffer.from(body, 'base64');
+  }
+  try {
+    return Buffer.from(decodeURIComponent(body), 'utf-8');
+  } catch {
+    // Malformed escape sequence — keep the raw text rather than lose the export.
+    return Buffer.from(body, 'utf-8');
+  }
+}
+
 async function saveExport(
   format: 'png' | 'svg',
   dataUrl: string
@@ -163,12 +194,7 @@ async function saveExport(
         : { 'SVG Image': ['svg'] },
   });
   if (!target) return;
-  const comma = dataUrl.indexOf(',');
-  const bytes =
-    comma >= 0 && dataUrl.startsWith('data:')
-      ? Buffer.from(dataUrl.slice(comma + 1), 'base64')
-      : Buffer.from(dataUrl, 'utf-8');
-  await vscode.workspace.fs.writeFile(target, bytes);
+  await vscode.workspace.fs.writeFile(target, decodeExportPayload(dataUrl));
   const open = 'Open File';
   const choice = await vscode.window.showInformationMessage(
     `Saved to ${target.fsPath}`,
@@ -189,11 +215,33 @@ function renderInto(context: vscode.ExtensionContext, target: vscode.WebviewPane
     'webview',
     'graph.js'
   );
-  const scriptUri = target.webview.asWebviewUri(scriptFileUri).toString();
+  // Cache-bust on the bundle's mtime. `asWebviewUri` returns the same URI for
+  // every render, so the iframe happily reuses a cached graph.js and a rebuilt
+  // bundle never reaches the panel — during development that looks exactly
+  // like the new code doing nothing. Keyed on mtime rather than a per-render
+  // nonce so an unchanged bundle still gets cached normally.
+  let stamp = '';
+  try {
+    stamp = String(fs.statSync(scriptFileUri.fsPath).mtimeMs);
+  } catch {
+    // Bundle missing is a build problem, not a render problem — let the
+    // webview load and show its own failure rather than throwing here.
+  }
+  const scriptUri =
+    target.webview.asWebviewUri(scriptFileUri).toString() +
+    (stamp ? `?v=${encodeURIComponent(stamp)}` : '');
   const payload = currentIndex
     ? buildIndexPayload(currentIndex)
     : { apps: [], scannedAt: 0, theme: resolveTheme() };
   target.webview.html = html(target.webview.cspSource, makeNonce(), scriptUri, payload);
+}
+
+/**
+ * Whether the ER panel is currently open. Lets callers skip re-rendering work
+ * when nothing is on screen to receive it.
+ */
+export function isGraphOpen(): boolean {
+  return panel !== undefined;
 }
 
 export function showGraph(context: vscode.ExtensionContext, index: WorkspaceIndex) {
@@ -223,7 +271,7 @@ export function showGraph(context: vscode.ExtensionContext, index: WorkspaceInde
       filePath?: string;
       lineNumber?: number;
       format?: 'png' | 'svg';
-      payload?: string;
+      payload?: unknown;
     }) => {
       if (!panel) return;
       if (msg.type === 'ready') {

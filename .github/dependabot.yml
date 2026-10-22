@@ -1,0 +1,97 @@
+# Dependabot v2 config — one entry per ecosystem present in the repo.
+# Weekly cadence so PR volume stays sane for a small maintainer; security
+# updates open immediately regardless of schedule (GitHub default).
+#
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Python — cli/pyproject.toml controls both runtime and dev deps.
+  - package-ecosystem: "pip"
+    directory: "/cli"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+  # Node — root package.json backs the VS Code extension bundle.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Group all @types/* bumps so we do not get 20 PRs a week.
+    groups:
+      types:
+        patterns:
+          - "@types/*"
+    # Hold major bumps for manual opt-in — they historically break tsc
+    # (typescript 5 -> 7 opened PR #39 on 2026-07-26 with red CI). If we
+    # actually want a major, do it as a hand-written migration PR.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # @types/vscode is not a normal dev dep: it must track engines.vscode
+      # (currently ^1.85.0), not latest. vsce refuses to package when the
+      # types outrun the declared engine --
+      #   '@types/vscode ^1.134.0 greater than engines.vscode ^1.85.0'
+      # -- which is exactly what turned PR #89 red on 2026-08-24. Raise this
+      # by hand, together with engines.vscode, when we deliberately drop
+      # support for older VS Code builds.
+      - dependency-name: "@types/vscode"
+
+  # Docker — root Dockerfile bakes the GHCR image.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Base-image bumps for the python image can silently drop stdlib
+    # modules our parser relies on. Hold major AND minor bumps for
+    # manual opt-in so we can verify the extension runtime + MCP tools
+    # against the new interpreter before shipping the container.
+    #
+    # NOTE — Dependabot's semver interpretation for docker `python:3.Y`:
+    #   • 3.x → 4.x = semver-major
+    #   • 3.13  → 3.14  = semver-MINOR (NOT major)
+    # PR #29 (3.12→3.14) and PR #46 (3.13→3.14) both slipped through
+    # when only major was ignored. Add semver-minor to close that gap.
+    # Patch bumps (3.13.1 → 3.13.2) still auto-open — safe.
+    ignore:
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+
+  # GitHub Actions — pin all `uses:` versions so we get security fixes.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"

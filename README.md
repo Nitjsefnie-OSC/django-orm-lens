@@ -1,4 +1,6 @@
-<div align="center">
+**English** · [Русский](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/i18n/README.ru.md) · [Español](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/i18n/README.es.md) · [中文](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/i18n/README.zh.md)
+
+<div align="center" markdown="1">
 
 <img src="media/hero.png" alt="Django ORM Lens — live sidebar and ER diagram for your Django models" width="100%"/>
 
@@ -7,126 +9,153 @@
 
 # Django ORM Lens
 
-### See your entire Django schema — in your editor, in your terminal, and from your AI agent.
+### ER diagrams, N+1 detection and migration-risk checks for Django — without booting it.
 
-Every app. Every model. Every field. Every relationship. Grouped, navigable, and one keystroke away from a live ER diagram.
+Your entire model graph — live in your editor sidebar, gating your CI, and answering your AI agent over MCP. All from static parsing: no database, no `runserver`, no working venv.
 
-<br/>
-
-[![Install from Marketplace](https://img.shields.io/badge/VS_Code-Install-0c4b33?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
-[![PyPI](https://img.shields.io/badge/PyPI-pip_install-3775a9?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/django-orm-lens/)
-[![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-6f42c1?style=for-the-badge)](https://registry.modelcontextprotocol.io/)
-[![Glama](https://img.shields.io/badge/Glama-listed-0f172a?style=for-the-badge)](https://glama.ai/mcp/servers/FROWNINGdev/django-orm-lens)
-[![mcp.so](https://img.shields.io/badge/mcp.so-listed-1f2937?style=for-the-badge)](https://mcp.so/servers/django-orm-lens)
-[![Star on GitHub](https://img.shields.io/badge/★-Star_on_GitHub-24292f?style=for-the-badge&logo=github&logoColor=white)](https://github.com/FROWNINGdev/django-orm-lens)
-[![Sponsor](https://img.shields.io/badge/♥-Sponsor-db61a2?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/FROWNINGdev)
+**Replaces:** `graph_models` + `django-schema-graph` + hand-drawn ER diagrams + grep archaeology.
 
 <br/>
 
-[![Version](https://img.shields.io/visual-studio-marketplace/v/frowningdev.django-orm-lens?color=0c4b33&label=extension&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/frowningdev.django-orm-lens?color=0c4b33&label=installs)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/frowningdev.django-orm-lens?color=0c4b33&label=rating)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens&ssr=false#review-details)
-[![PyPI version](https://img.shields.io/pypi/v/django-orm-lens?color=3775a9&label=pypi)](https://pypi.org/project/django-orm-lens/)
-[![Python](https://img.shields.io/pypi/pyversions/django-orm-lens?color=3775a9)](https://pypi.org/project/django-orm-lens/)
-[![License MIT](https://img.shields.io/badge/license-MIT-0c4b33?style=flat)](LICENSE)
-[![CI](https://github.com/FROWNINGdev/django-orm-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/FROWNINGdev/django-orm-lens/actions/workflows/ci.yml)
+<!-- Hero — LIVE badges only, minimal (FastAPI / Rich pattern) -->
+
+[![PyPI](https://img.shields.io/pypi/v/django-orm-lens?color=3775a9&label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/django-orm-lens/)
+[![Python](https://img.shields.io/pypi/pyversions/django-orm-lens?color=3775a9&logo=python&logoColor=white)](https://pypi.org/project/django-orm-lens/)
+[![Django versions](https://img.shields.io/pypi/djversions/django-orm-lens?color=092e20&label=Django&logo=django&logoColor=white)](https://pypi.org/project/django-orm-lens/)
+[![CI](https://img.shields.io/github/actions/workflow/status/FROWNINGdev/django-orm-lens/ci.yml?branch=main&label=CI&logo=github)](https://github.com/FROWNINGdev/django-orm-lens/actions/workflows/ci.yml)
+[![Downloads](https://img.shields.io/pepy/dt/django-orm-lens?color=3775a9&label=downloads&logo=pypi&logoColor=white)](https://pepy.tech/project/django-orm-lens)
+[![License](https://img.shields.io/github/license/FROWNINGdev/django-orm-lens?color=16a34a)](LICENSE)
+
+<br/>
+
+<!-- One-click install per platform -->
+
+[![Install on VS Code](https://img.shields.io/badge/VS_Code-Install-0c4b33?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
+[![Install on Open VSX](https://img.shields.io/badge/Open_VSX-Install-c160ef?style=for-the-badge&logo=eclipseide&logoColor=white)](https://open-vsx.org/extension/frowningdev/django-orm-lens)
+[![Docker GHCR](https://img.shields.io/badge/Docker-GHCR-2496ed?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/FROWNINGdev/django-orm-lens/pkgs/container/django-orm-lens)
+
+<br/>
+
+<sub>Featured in <a href="https://django-news.com/archive/issue-347-django-61-release-candidate-1-released/">Django News #347</a> · <a href="https://pycoders.com/issues/746">PyCoder's Weekly #746</a></sub>
 
 </div>
 
 ---
 
-## 🎯 Pick your path
-
-Django ORM Lens ships as **three distributions on one core** — pick the one that matches your workflow. Each takes under 60 seconds.
-
-**Editor user (VS Code / Cursor / Windsurf):** install the extension → open any Django project → sidebar tree + ER diagram appear.
+## ⚡ 10 seconds to first insight
 
 ```bash
-code --install-extension frowningdev.django-orm-lens
+uvx django-orm-lens scan -f table   # every app and model at a glance
+uvx django-orm-lens nplusone        # N+1 loops, with the select_related to add
+uvx django-orm-lens migration-risk  # migrations that lock tables or fail on existing rows
 ```
 
-**Terminal / CI user:** install from PyPI → run `django-orm-lens` in any directory that contains Django apps.
+Cold clone, broken venv, no settings module — you still see every app and model of the project, then the N+1 loops and risky migrations in it, right in your terminal. (`uvx` is from [uv](https://docs.astral.sh/uv/); `pipx run` works the same way.)
 
-```bash
-pip install django-orm-lens
-django-orm-lens               # welcome + commands
-django-orm-lens scan          # scan cwd for apps and models
-```
+**Then pick your surface** — three distributions, one parser core:
 
-**AI coding agent user (Cursor / Aider / Continue / Zed):** install with MCP extras → add one JSON block to your client config.
+| You are | Install | You get |
+|---|---|---|
+| **Editor user** — VS Code / Cursor / Windsurf / VSCodium | `code --install-extension frowningdev.django-orm-lens` | Field autocomplete in `.filter()`, sidebar tree, live ER diagram, hover cards, 18 lint rules with QuickFixes |
+| **Terminal / CI user** | `pip install django-orm-lens` | 17 subcommands, SARIF + PR annotations, pre-commit hooks, a GitHub Action |
+| **AI-agent user** — Cursor / Claude Code / Aider / Zed / Continue | `pip install "django-orm-lens[mcp]"` | 13 read-only MCP tools answering schema questions from ground truth |
 
-```bash
-pip install "django-orm-lens[mcp]"
-```
+MCP setup is one JSON block — see [Integrations](#-integrations). Point `DJANGO_ORM_LENS_ROOT` at your Django project's absolute path.
 
-Then the MCP config snippet in the [Integrations](#-integrations) section below. Point `DJANGO_ORM_LENS_ROOT` at your Django project's absolute path.
+---
+
+## 🆓 Paid-tier capabilities, free and MIT
+
+Schema review is a paid category nearly everywhere. A bot that reviews every pull request, analysis that follows a queryset past the function it was built in, a check that catches schema drift, index advice grounded in real table statistics — those normally sit behind a per-seat or per-database subscription.
+
+All of it is here, MIT-licensed, with no tier gate, no seat count, no account, and no telemetry:
+
+| Capability usually sold as a paid tier | Here |
+|---|---|
+| PR review bot for schema changes — posts once, then updates in place | [`blast-radius`](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/blast-radius.md) + the [Action](#️-gate-your-ci) |
+| Analysis that follows a queryset across functions | [`nplusone`](docs/rules/nplusone.md) |
+| Schema drift detection | [`drift`](docs/rules/drift.md) |
+| Index proposals from observed QuerySet usage | `suggest-indexes` |
+| Migration risk weighed against real table sizes | `blast-radius --stats` |
+| Blast radius of a destructive migration | [`blast-radius`](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/blast-radius.md) |
+| Cross-layer impact of removing a field | `impact` |
+
+**There is no Pro tier, and none is planned.** If the tool saves you an afternoon, a star is the entire ask.
 
 ---
 
 ## 📊 Traction
 
-<div align="center">
+<div align="center" markdown="1">
 
-<!-- Headline split-badges (dark label · colored value) -->
+<!-- Traction — LIVE counters only, no hardcoded numbers.
 
-[![First-week installs](https://img.shields.io/badge/first--week_installs-1082%2B-3775a9?style=for-the-badge&logo=pypi&logoColor=white&labelColor=1e293b)](https://pypi.org/project/django-orm-lens/)
-[![Peak day](https://img.shields.io/badge/peak_day_installs-441-f97316?style=for-the-badge&logo=rocket&logoColor=white&labelColor=1e293b)](https://pypi.org/project/django-orm-lens/)
-[![Unique cloners](https://img.shields.io/badge/unique_cloners_14d-171-24292f?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b)](https://github.com/FROWNINGdev/django-orm-lens)
-[![VS Code rating](https://img.shields.io/badge/VS_Code_rating-5.0_%E2%98%85-eab308?style=for-the-badge&logo=visualstudiocode&logoColor=white&labelColor=1e293b)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
+     The two VS Code counters deliberately do not come from shields.io. Its
+     whole `visual-studio-marketplace/*` family is retired and now answers
+     every request with a grey "retired badge" — which is exactly what the
+     rating badge on this page had silently become, reporting nothing while
+     looking like it reported something. vsmarketplacebadges.dev reads the
+     same Marketplace gallery API and is live, so those two keep counting.
+
+     Open VSX is listed separately from the Marketplace rather than folded
+     into one "editor installs" number: they are different registries with
+     different audiences (VSCodium, Gitpod, Eclipse Theia), and the download
+     counts differ by an order of magnitude, so summing them would hide the
+     more interesting of the two. -->
+
+[![GitHub stars](https://img.shields.io/github/stars/FROWNINGdev/django-orm-lens?style=for-the-badge&logo=github&logoColor=white&color=eab308&labelColor=1e293b)](https://github.com/FROWNINGdev/django-orm-lens/stargazers)
+[![Forks](https://img.shields.io/github/forks/FROWNINGdev/django-orm-lens?style=for-the-badge&logo=github&logoColor=white&color=64748b&labelColor=1e293b)](https://github.com/FROWNINGdev/django-orm-lens/network/members)
+[![Contributors](https://img.shields.io/github/contributors/FROWNINGdev/django-orm-lens?style=for-the-badge&logo=github&logoColor=white&label=contributors&color=8b5cf6&labelColor=1e293b)](https://github.com/FROWNINGdev/django-orm-lens/graphs/contributors)
+[![PyPI monthly](https://img.shields.io/pypi/dm/django-orm-lens?style=for-the-badge&logo=pypi&logoColor=white&label=PyPI%2Fmonth&color=3775a9&labelColor=1e293b)](https://pypi.org/project/django-orm-lens/)
+[![Total downloads](https://img.shields.io/pepy/dt/django-orm-lens?style=for-the-badge&logo=pypi&logoColor=white&label=total%20downloads&color=3775a9&labelColor=1e293b)](https://pepy.tech/project/django-orm-lens)
+[![Open VSX downloads](https://img.shields.io/open-vsx/dt/frowningdev/django-orm-lens?style=for-the-badge&logo=eclipseide&logoColor=white&label=Open%20VSX&color=c160ef&labelColor=1e293b)](https://open-vsx.org/extension/frowningdev/django-orm-lens)
+[![VS Code installs](https://vsmarketplacebadges.dev/installs-short/frowningdev.django-orm-lens.svg?style=for-the-badge&colorA=1e293b&colorB=0c4b33&label=VS%20Code%20installs)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
+[![Marketplace rating](https://vsmarketplacebadges.dev/rating-star/frowningdev.django-orm-lens.svg?style=for-the-badge&colorA=1e293b&colorB=c160ef&label=rating)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens&ssr=false#review-details)
+[![Last commit](https://img.shields.io/github/last-commit/FROWNINGdev/django-orm-lens?style=for-the-badge&logo=github&logoColor=white&label=last%20commit&color=64748b&labelColor=1e293b)](https://github.com/FROWNINGdev/django-orm-lens/commits/main)
 
 <br/>
 
-<!-- Cross-platform reach snapshot -->
+<!-- Directory presence — one row per registry, no duplicates -->
 
-[![VS Code downloads](https://img.shields.io/badge/VS_Code_downloads-113-0c4b33?style=for-the-badge&logo=visualstudiocode&logoColor=white&labelColor=1e293b)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
-[![GitHub views](https://img.shields.io/badge/GitHub_views_14d-256-24292f?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b)](https://github.com/FROWNINGdev/django-orm-lens)
-[![LinkedIn posts](https://img.shields.io/badge/LinkedIn_posts_live-4-0a66c2?style=for-the-badge&logo=linkedin&logoColor=white&labelColor=1e293b)](https://linkedin.com/company/django-orm-lens)
-[![Awesome-list PRs](https://img.shields.io/badge/awesome--list_PRs-2_pending-16a34a?style=for-the-badge&logo=awesomelists&logoColor=white&labelColor=1e293b)](https://github.com/FROWNINGdev)
-
-<br/>
-
-<!-- Live counters + directories -->
-
-[![PyPI weekly](https://img.shields.io/pypi/dw/django-orm-lens?style=for-the-badge&logo=pypi&logoColor=white&label=weekly%20downloads&labelColor=1e293b&color=3775a9)](https://pypi.org/project/django-orm-lens/)
-[![PyPI monthly](https://img.shields.io/pypi/dm/django-orm-lens?style=for-the-badge&logo=pypi&logoColor=white&label=monthly%20downloads&labelColor=1e293b&color=3775a9)](https://pypi.org/project/django-orm-lens/)
-[![GitHub stars](https://img.shields.io/github/stars/FROWNINGdev/django-orm-lens?style=for-the-badge&logo=github&logoColor=white&label=stars&labelColor=1e293b&color=eab308)](https://github.com/FROWNINGdev/django-orm-lens/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/FROWNINGdev/django-orm-lens?style=for-the-badge&logo=github&logoColor=white&label=forks&labelColor=1e293b&color=64748b)](https://github.com/FROWNINGdev/django-orm-lens/network/members)
-
-<br/>
-
-<!-- MCP directories -->
-
-[![MCP Registry](https://img.shields.io/badge/MCP_Registry-official_listing-6f42c1?style=for-the-badge&labelColor=1e293b)](https://registry.modelcontextprotocol.io/)
-[![Glama.ai](https://img.shields.io/badge/Glama.ai-listed-0f172a?style=for-the-badge&labelColor=1e293b)](https://glama.ai/mcp/servers/FROWNINGdev/django-orm-lens)
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-official-6f42c1?style=for-the-badge&labelColor=1e293b)](https://registry.modelcontextprotocol.io/)
+[![Smithery](https://img.shields.io/badge/Smithery-listed-8b5cf6?style=for-the-badge&labelColor=1e293b)](https://smithery.ai/server/@frowningdev/django-orm-lens)
+[![Glama](https://img.shields.io/badge/Glama.ai-listed-64748b?style=for-the-badge&labelColor=1e293b)](https://glama.ai/mcp/servers/FROWNINGdev/django-orm-lens)
+[![awesome-mcp-servers](https://img.shields.io/badge/awesome--mcp--servers-listed-16a34a?style=for-the-badge&logo=github&logoColor=white&labelColor=1e293b)](https://github.com/punkpeye/awesome-mcp-servers)
 [![mcp.so](https://img.shields.io/badge/mcp.so-listed-1f2937?style=for-the-badge&labelColor=1e293b)](https://mcp.so/servers/django-orm-lens)
-
-<br/>
-
-<!-- Tech stack + license -->
-
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/frowningdev.django-orm-lens?style=for-the-badge&logo=visualstudiocode&logoColor=white&label=VS%20Code&labelColor=1e293b&color=0c4b33)](https://marketplace.visualstudio.com/items?itemName=frowningdev.django-orm-lens)
-[![PyPI version](https://img.shields.io/pypi/v/django-orm-lens?style=for-the-badge&logo=pypi&logoColor=white&label=PyPI&labelColor=1e293b&color=3775a9)](https://pypi.org/project/django-orm-lens/)
-[![Python](https://img.shields.io/pypi/pyversions/django-orm-lens?style=for-the-badge&logo=python&logoColor=white&label=Python&labelColor=1e293b&color=3775a9)](https://pypi.org/project/django-orm-lens/)
-[![Django](https://img.shields.io/badge/Django-4.0_%E2%80%93_5.1-092e20?style=for-the-badge&logo=django&logoColor=white&labelColor=1e293b)](https://www.djangoproject.com/)
-[![License MIT](https://img.shields.io/badge/license-MIT-16a34a?style=for-the-badge&labelColor=1e293b)](LICENSE)
 
 </div>
 
-<sub><i>Updated 2026-07-15. PyPI weekly / monthly, GitHub stars / forks, and PyPI / VS Code version badges auto-refresh live.</i></sub>
+> If the tool saves you a `grep` next time you touch a strange Django project — **[a star helps others find it](https://github.com/FROWNINGdev/django-orm-lens/stargazers)**.
 
-> If the tool saves you a `grep` next time you touch a strange Django project — **[star helps others find it](https://github.com/FROWNINGdev/django-orm-lens/stargazers)**.
+### 📈 Star growth
+
+<div align="center">
+  <a href="https://www.star-history.com/?repos=FROWNINGdev%2Fdjango-orm-lens&type=date&legend=top-left">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=FROWNINGdev/django-orm-lens&type=date&theme=dark&legend=top-left&sealed_token=Bt09MbOICQzMe0Yzud5Up9GEQwXZReJEx6n5AS5Sl2GB3UtfipcUjyojd3g8PEfAkOFiZgy5uJel_LoNeLy_r7I4pyGhnYdUyQIbJDQzKlx1oA3BLRkxlAgby995WLgF7Ze1fdg2TlS6EJH0aRozsCZnwP1rtqXbMCWRMu1c9qpFrPcKxgFNd1G9fWMT" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=FROWNINGdev/django-orm-lens&type=date&legend=top-left&sealed_token=Bt09MbOICQzMe0Yzud5Up9GEQwXZReJEx6n5AS5Sl2GB3UtfipcUjyojd3g8PEfAkOFiZgy5uJel_LoNeLy_r7I4pyGhnYdUyQIbJDQzKlx1oA3BLRkxlAgby995WLgF7Ze1fdg2TlS6EJH0aRozsCZnwP1rtqXbMCWRMu1c9qpFrPcKxgFNd1G9fWMT" />
+      <img alt="Star history of FROWNINGdev/django-orm-lens" loading="lazy" decoding="async" src="https://api.star-history.com/chart?repos=FROWNINGdev/django-orm-lens&type=date&legend=top-left&sealed_token=Bt09MbOICQzMe0Yzud5Up9GEQwXZReJEx6n5AS5Sl2GB3UtfipcUjyojd3g8PEfAkOFiZgy5uJel_LoNeLy_r7I4pyGhnYdUyQIbJDQzKlx1oA3BLRkxlAgby995WLgF7Ze1fdg2TlS6EJH0aRozsCZnwP1rtqXbMCWRMu1c9qpFrPcKxgFNd1G9fWMT" />
+    </picture>
+  </a>
+</div>
 
 ---
 
 ## ⚡ Install
 
-**VS Code / Cursor / Windsurf / any Code fork:**
+**VS Code / Cursor / Windsurf** (VS Code Marketplace):
 
 ```bash
 code --install-extension frowningdev.django-orm-lens
 ```
 
-Or search **`Django ORM Lens`** in the Extensions view.
+**VSCodium / code-server / Gitpod / any OSS Code fork** (Open VSX):
+
+```bash
+codium --install-extension frowningdev.django-orm-lens
+```
+
+Or search **`Django ORM Lens`** in the Extensions view — same publisher `frowningdev` on both registries.
 
 **Terminal & AI coding agents:**
 
@@ -136,6 +165,14 @@ pip install "django-orm-lens[mcp]"       # + MCP server for AI agents
 ```
 
 Requires Python 3.9+. Zero runtime dependencies for the CLI.
+
+**Docker (v0.6+):**
+
+```bash
+docker run --rm -v "$PWD:/workspace" ghcr.io/frowningdev/django-orm-lens scan --path .
+```
+
+Multi-arch (amd64 + arm64). No Python required on the host. Good for CI and one-off audits.
 
 <br/>
 
@@ -212,11 +249,121 @@ Dark theme. Light theme. Your theme. Follows your icon theme, your font, your ke
 
 <br/>
 
+## 🚀 Power features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 💥 Blast radius
+
+The review-time question a schema change actually raises: **what does this hit?** Every destructive migration operation becomes a target carrying its risks, every place in the codebase that still reads it, and — for whole-model operations — the cascade fallout.
+
+`migration-risk`, `impact` and `cascade` each answer a third of that; nobody joins them by hand, so the tool does. `--format markdown` is a postable PR comment; `--stats` turns "probably populated" into `~41 000 000 rows, 12.0 GB` from a read-only query you run yourself, with no database credential anywhere near CI.
+
+</td>
+<td width="50%" valign="top">
+
+### 🧭 Schema drift
+
+`makemigrations --check` without booting Django. Each app's migrations are replayed in order into the field set they imply, then compared against what `models.py` declares.
+
+Django's own check needs a working settings module, an importable app registry and every dependency installed — unavailable on a cold clone or a broken venv, which is exactly when the answer is cheapest to act on. Only the dangerous direction fails the build: a field declared but never migrated means the column will not exist, and the first query touching it errors.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🎯 Inline diagnostics & QuickFixes (18 rules)
+
+Static analysis over `.py` files with Ruff-style codes (`DOL001`..`DOL041`), Clippy-style `Applicability`, and per-rule severity overrides. `.count() > 0` → `.exists()`, `null=True` on `CharField`, missing `on_delete`, `datetime.now()` → `timezone.now()`, planner-GUC overrides in raw SQL (`enable_*`, `plan_cache_mode`, `jit*`; diagnostic-only), and a dozen more.
+
+Suppress inline with `# django-orm-lens-disable-next-line DOL007`.
+
+</td>
+<td width="50%" valign="top">
+
+### 🧪 Factory generator
+
+Right-click any model → `factory_boy` `DjangoModelFactory` scaffold with Faker providers keyed by field type. `CharField(max_length)` scales word-count buckets, `DecimalField(N,D)` computes `left_digits=N-D`, `choices=` maps to `Iterator`, M2M gets `@post_generation`. FK chains pull related factories transitively.
+
+Also available as CodeLens above each model class.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🕰 Time-Travel Schema Diff
+
+Pick a `models.py`, pick two commits, get a typed diff as PR-ready markdown. `AddModel` / `DropModel` / `RenameModel` / `ModifyModel` events with confidence-scored rename detection (Levenshtein + field-shape Jaccard).
+
+Renames are first-class events, never `Add + Drop`. Blob-SHA LRU cache — commits that don't touch `models.py` share their parsed snapshot.
+
+</td>
+<td width="50%" valign="top">
+
+### 🔎 Impact analysis
+
+"What breaks if I remove this field?" — right-click a field or model → workspace-wide scan grouped by Django layer (models, serializers, forms, admin, views, urls, templates, tests, migrations).
+
+Findings carry a **Certain / Likely / Possibly** confidence tag. Handles ORM string refs (`order_by("-author")`), kwarg lookups (`filter(author__id=1)`), `Meta.fields` tuples, and template variables.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### ⚡ Interactive query builder
+
+Right-click a field or model → pick a template → snippet inserted at cursor (with tab-stops) or in a fresh untitled buffer.
+
+`.filter(field=?)` on an FK auto-appends `.select_related(...)`, `.annotate(post_count=Count('post_set'))` honours `related_name`, `.prefetch_related` for M2M, `.values('field').distinct()`, `.only('field')`.
+
+</td>
+<td width="50%" valign="top">
+
+### 🎨 Sidebar UX overhaul
+
+Stable `TreeItem.id` — refresh no longer collapses the tree. Rich `MarkdownString` tooltips with `command:` deep-links. Activity-bar badge counts DOL### issues.
+
+`FileDecorationProvider` badges: red `!` on FK-without-`on_delete`, yellow `~` on `null=True` string fields (bubbles up to the parent Model row, Git-style).
+
+</td>
+</tr>
+</table>
+
+<br/>
+
 ## 📸 What it looks like
 
-<div align="center">
-<img src="media/hero.png" alt="Django ORM Lens sidebar showing an app's models with fields, relations, and Meta options" width="90%"/>
+<div align="center" markdown="1">
+<img src="media/screenshot-vscode.png" alt="VS Code with Django ORM Lens: the model tree, ORM diagnostics in views.py and the live ER diagram" width="100%" loading="lazy" decoding="async"/>
 </div>
+
+**Live sample** — real `django-orm-lens er` output, rendered by GitHub right here:
+
+```mermaid
+erDiagram
+  User {
+    CharField display_name
+  }
+  Tag {
+    CharField name
+  }
+  Post {
+    CharField title
+    DateTimeField created_at
+  }
+  Comment {
+    TextField body
+  }
+  Post }o--|| User : "author [CASCADE, as posts]"
+  Post }o--o{ Tag : "tags [as posts]"
+  Comment }o--|| Post : "post [CASCADE, as comments]"
+  Comment }o--|| User : "author [SET_NULL]"
+```
 
 **Also included in the extension:**
 
@@ -234,18 +381,32 @@ The same parser that powers the VS Code extension ships as a standalone Python p
 ### CLI
 
 ```bash
-django-orm-lens scan -f json          # every app, every model, every field
-django-orm-lens describe blog.Post    # one model in Markdown
-django-orm-lens hover blog.Post       # compact hover card
-django-orm-lens list | fzf            # flat app.Model — pipes anywhere
-django-orm-lens er > schema.mmd       # Mermaid ER diagram
+django-orm-lens scan -f json                 # every app, every model, every field
+django-orm-lens describe blog.Post           # one model in Markdown
+django-orm-lens list | fzf                   # flat app.Model — pipes anywhere
+django-orm-lens er > schema.mmd              # ER diagram — Mermaid (default)
+django-orm-lens er -f dbml > schema.dbml     # …or DBML: paste into dbdiagram.io
+django-orm-lens er -f d2 > schema.d2         # …or D2 / plantuml / dot
+django-orm-lens diff before.json after.json  # what a PR changes structurally
+django-orm-lens nplusone --format github     # N+1 findings as PR annotations
+django-orm-lens migration-risk -f sarif      # SARIF for GitHub Code Scanning
+django-orm-lens suggest-indexes blog.Post    # Meta.indexes proposals from usage
+django-orm-lens signals                      # sender→signal→handler graph
+django-orm-lens migration-deps blog -f mermaid   # per-app migration DAG
+django-orm-lens cascade blog.Author          # what one delete() takes down
+django-orm-lens impact author                # what still references a field
+django-orm-lens blast-radius -f markdown     # risks + who still reads them
+django-orm-lens drift                        # migrations vs models, no boot
+django-orm-lens stats-sql                    # read-only SQL for --stats
 ```
 
-Every command accepts `--path <dir>` and `--exclude <glob>`.
+> `impact`, `blast-radius`, `drift` and `stats-sql` ship in **py-1.7.0** and later.
+
+Every command accepts `--path <dir>` and `--exclude <glob>`. `nplusone` / `migration-risk` / `diff` exit code `1` on findings — drop them into CI to block PRs on regressions.
 
 ### MCP server
 
-Register it once with your agent and it exposes five read-only tools:
+Register it once with your agent and it exposes thirteen read-only tools:
 
 | Tool | Purpose |
 | --- | --- |
@@ -253,7 +414,15 @@ Register it once with your agent and it exposes five read-only tools:
 | `list_models` | Flat `app.Model` list, optional app filter |
 | `describe_model` | Full field / relation / Meta detail for one model |
 | `find_relations` | Inbound + outbound relations for one model |
-| `er_diagram` | Mermaid `erDiagram` for the whole workspace |
+| `cascade_preview` | Blast radius of one `delete()`, grouped by `on_delete` |
+| `er_diagram` | ER diagram — `mermaid` / `dbml` / `d2` / `plantuml` / `dot` |
+| `describe_migration_dependency` | Per-app migration DAG: roots, leaves, cross-app deps |
+| `suggest_indexes` | `Meta.indexes` proposals from observed QuerySet usage |
+| `signal_graph` | Sender→signal→handler graph from `@receiver` decorators |
+| `blast_radius` | What a destructive migration hits: its risks, the code still reading it, the cascade fallout |
+| `drift` | `makemigrations --check` without booting Django — migrations diffed against `models.py` |
+| `impact` | Every reference to a field or model name, grouped by Django layer |
+| `nplusone_scan` | Static N+1 findings for the whole workspace |
 
 ```bash
 # Start it directly
@@ -263,7 +432,99 @@ django-orm-lens-mcp
 django-orm-lens mcp
 ```
 
-Set `DJANGO_ORM_LENS_ROOT=/abs/path/to/project` to point it anywhere.
+**Workspace resolution (py-1.3.0+).** Every tool accepts an optional
+`workspace_root` argument on the call. Resolution priority: explicit arg →
+`$DJANGO_ORM_LENS_ROOT` → current working directory. Invalid or non-Django
+paths return a structured envelope
+(`{"error": "WORKSPACE_NOT_DJANGO", "hint": "…"}`) instead of empty results,
+so the agent can self-correct. Optional sandbox via
+`DJANGO_ORM_LENS_ALLOWED_ROOTS` (`;`-separated on Windows, `:` elsewhere).
+
+### Agent skill
+
+The tools tell an agent what is true; the skill tells it what to do with
+that. [`skills/django-orm-lens`](skills/django-orm-lens) is a SKILL.md
+package with playbooks for migration review, safe renames and removals,
+N+1 fixes and cascade checks, a safe rewrite for each of the 16 migration
+rules, and `audit.py` for a one-command verdict (BLOCK / FIX BEFORE DEPLOY /
+SHIP). It uses the MCP server when connected and falls back to the CLI via
+`uvx`.
+
+- Install from [Agensi](https://www.agensi.io/skills/django-orm-lens-n-1-migration-safety-schema-map) (free), or
+- copy the folder into your agent's skills directory, e.g. for Claude Code:
+
+```bash
+git clone --depth 1 https://github.com/FROWNINGdev/django-orm-lens
+cp -r django-orm-lens/skills/django-orm-lens ~/.claude/skills/
+```
+
+<br/>
+
+## 🛡️ Gate your CI
+
+Schema regressions are cheapest to catch the moment they enter a PR. Four zero-config ways to block them:
+
+**Blast-radius PR bot** — the whole schema review as one comment, updated in place on every push instead of a new comment each time:
+
+```yaml
+name: Schema review
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write        # only for `comment: true`
+
+jobs:
+  blast-radius:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FROWNINGdev/django-orm-lens@action-v1
+        with:
+          command: blast-radius
+          only-changed: true          # scope to migrations this PR touches
+          comment: true               # post once, then update in place
+          github-token: ${{ github.token }}
+```
+
+The comment goes up **before** the job fails, so a blocked PR still explains why. `only-changed` reads the PR's file list from the API rather than `git diff`, because `actions/checkout` defaults to `fetch-depth: 1` and the base commit is not in the local history. On `push` events both flags skip with a notice instead of failing, so one workflow covers both triggers.
+
+> The Action installs from PyPI, so `blast-radius` and `drift` need **py-1.7.0** or later — pin it with `version: 1.7.0` if your workflow must not drift. To run an unreleased build instead, add `install: false` and install the source yourself; [this repo's own workflow](.github/workflows/schema-review.yml) does exactly that, and is what verifies the Action on every PR.
+
+
+**pre-commit** — two hooks, nothing to install locally:
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/FROWNINGdev/django-orm-lens
+    rev: py-v1.13.5
+    hooks:
+      - id: django-orm-lens-nplusone
+      - id: django-orm-lens-migration-risk
+```
+
+**GitHub Action** — findings appear as PR annotations with zero extra permissions:
+
+```yaml
+- uses: FROWNINGdev/django-orm-lens@action-v1
+  with:
+    command: migration-risk      # or: nplusone
+    format: github               # ::error / ::warning annotations on the diff
+```
+
+**SARIF → Code Scanning** — findings land in the repo Security tab:
+
+```yaml
+- run: |
+    pip install django-orm-lens
+    django-orm-lens migration-risk --format sarif --exit-zero > lens.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: lens.sarif
+```
+
+Exit codes are CI-native: `diff` and `nplusone` exit `1` on findings, `migration-risk` and `blast-radius` exit `1` on critical findings, `drift` exits `1` when a field is declared but never migrated. Add `--exit-zero` for report-only mode.
 
 <br/>
 
@@ -278,6 +539,8 @@ Set `DJANGO_ORM_LENS_ROOT=/abs/path/to/project` to point it anywhere.
 | **Continue.dev** | register the MCP server in `~/.continue/config.json` | ✅ (via MCP) |
 | **Zed** | register the MCP server in Zed settings | ✅ (via MCP) |
 | **Any MCP-compatible client** | point `command` at `django-orm-lens-mcp`, set `DJANGO_ORM_LENS_ROOT` | ✅ |
+| **pre-commit** | `repo: https://github.com/FROWNINGdev/django-orm-lens` + two hook ids | ✅ |
+| **GitHub Actions** | `uses: FROWNINGdev/django-orm-lens@action-v1` — annotations or SARIF | ✅ |
 | **Discoverable via [MCP Registry](https://registry.modelcontextprotocol.io/)** | official Model Context Protocol server directory | ✅ |
 | **Plain terminal / CI** | `pip install django-orm-lens && django-orm-lens scan` | ✅ |
 
@@ -296,33 +559,16 @@ Set `DJANGO_ORM_LENS_ROOT=/abs/path/to/project` to point it anywhere.
 
 <br/>
 
-## 🚀 Get started (30 seconds)
+## ⚡ Performance
 
-**In VS Code:**
+The regression suite parses the vendored model graphs of **Zulip, Saleor, Wagtail, django CMS, and Mezzanine** — 59 models across 13,478 lines of real-world `models.py` — in about **20 ms** end-to-end on a laptop (21 ms best-of-3 on the repo's golden-fixture corpus; a `<2 s` guard runs in CI on every matrix cell).
 
-1. `code --install-extension frowningdev.django-orm-lens`
-2. Open a folder with a `manage.py` or `models.py`
-3. Click the **Django ORM Lens** icon in the activity bar
-4. Expand apps → models → fields
-5. Click the **type-hierarchy** icon at the top of the panel → ER diagram opens beside your code
-
-**In a terminal:**
+Reproduce it yourself:
 
 ```bash
-pip install django-orm-lens
-cd my-django-project
-django-orm-lens scan -f table
+git clone https://github.com/FROWNINGdev/django-orm-lens && cd django-orm-lens/cli
+pip install -e . && python -m pytest tests/test_golden_fixtures.py tests/test_golden_snapshots.py -q
 ```
-
-**As an AI agent tool:**
-
-```bash
-pip install "django-orm-lens[mcp]"
-```
-
-…then register `django-orm-lens-mcp` in your agent's MCP config (see the [Integrations](#-integrations) table above).
-
-No settings screen. No sign-in. No telemetry.
 
 <br/>
 
@@ -373,6 +619,10 @@ Django ORM Lens sits at the intersection of **editor tooling** and **AI-agent to
 
 > *`django-schema-graph` has not been updated since 2023-05 and does not test Django 5.x.*
 
+### When you want something else
+
+Honest boundaries: profiling a live request → **django-debug-toolbar**. Historical request profiling → **django-silk**. Query-count assertions inside a test suite → **django-perf-rec**. Production APM on real traffic → **Scout / Sentry**. Django ORM Lens deliberately stays static — it's the layer that works before the app can even boot, and the only one your CI and your AI agent can use on any checkout.
+
 <br/>
 
 ## ⚙️ Configuration
@@ -397,6 +647,42 @@ The defaults are opinionated and sensible. If you need to tweak:
 |---|---|---|---|
 | `djangoOrmLens.excludeGlobs` | `string[]` | See above | Glob patterns to skip when scanning |
 | `djangoOrmLens.autoRefresh` | `boolean` | `true` | Rescan on `models.py` changes |
+| `djangoOrmLens.codeFixes.enabled` | `boolean` | `true` | Master switch for the DOL### diagnostics + QuickFixes |
+| `djangoOrmLens.rules` | `object` | `{}` | Per-rule severity: `{ "DOL007": "off", "DOL013": "error" }` |
+| `djangoOrmLens.rulesSelect` | `string[]` | `[]` | Ruff-style select. `["DOL0"]` runs only queryset+model rules |
+| `djangoOrmLens.rulesIgnore` | `string[]` | `[]` | Ruff-style ignore. `["DOL03"]` silences form/view rules |
+
+<br/>
+
+## 🔬 Rule catalogue
+
+Eighteen editor-side checks (`DOL001`–`DOL041`) with Ruff-style codes, per-rule severity, and Clippy-style applicability — plus sixteen CLI-side migration-risk rules and the static N+1 analyzer. **Every rule now has its own documentation page.**
+
+| Category | Rules | Examples |
+|---|---|---|
+| [Queryset](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/README.md) | `DOL001`–`DOL007` | `.count() > 0` → `.exists()`, FK access in loops (N+1) |
+| [Model definition](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/README.md) | `DOL011`–`DOL015` | `ForeignKey` without `on_delete`, `null=True` on string fields |
+| [Datetime](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/README.md) | `DOL021`–`DOL022` | `datetime.now()` → `timezone.now()` |
+| [Forms / views](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/README.md) | `DOL031`–`DOL032` | `locals()` in `render()`, `Meta.fields = '__all__'` |
+| [Raw SQL](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/DOL041.md) | `DOL041` | `SET enable_hashjoin = off`, `plan_cache_mode`, `jit` overrides in app code |
+| [Migration risks](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/migrations.md) | 16 rules | NOT NULL add without default, table-locking index builds, irreversible data migrations |
+| [Static N+1](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/nplusone.md) | 1 analyzer | FK/M2M access in loops without `select_related` / `prefetch_related` |
+
+→ **[Full rule reference](https://github.com/FROWNINGdev/django-orm-lens/blob/main/docs/rules/README.md)** — every code with bad/good examples, QuickFix behaviour, and suppression syntax.
+
+### Suppress inline
+
+```python
+# django-orm-lens-disable-next-line DOL007
+for user in User.objects.all():
+    print(user.profile)  # not flagged
+
+qs.count() > 0  # django-orm-lens-disable-line DOL001
+
+# django-orm-lens-disable DOL011  ← on its own line, kills DOL011 for the rest of the file
+```
+
+Applicability follows Rust's Clippy: **safe** fixes can be applied automatically ("Fix All"), **suggestion** fixes are offered as a QuickFix but reviewed, **unsafe** findings never auto-apply. Fixes are separated from analyzers (Roslyn-style), so one rule can grow multiple fixers over time without touching detection logic.
 
 <br/>
 
@@ -411,6 +697,11 @@ Open the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type "Django ORM L
 | `Django ORM Lens: Filter Models` | Filter the tree by app / model / field name |
 | `Django ORM Lens: Clear Filter` | Restore the full tree |
 | `Django ORM Lens: Jump to Model` | Programmatic — triggered by tree clicks and hover cards |
+| `Django ORM Lens: Find Reverse References` | Right-click a model — QuickPick of every FK pointing at it |
+| `Django ORM Lens: Generate factory_boy Factory` | Right-click a model or use CodeLens — scaffold a `DjangoModelFactory` |
+| `Django ORM Lens: Schema Diff (Time-Travel)` | Pick two commits — get a typed diff as a markdown buffer |
+| `Django ORM Lens: Find Impact (What Uses This?)` | Right-click a field or model — workspace-wide reference scan |
+| `Django ORM Lens: Build Query (Insert Snippet)` | Right-click a field or model — pick an ORM template |
 
 <br/>
 
@@ -432,17 +723,82 @@ Open the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type "Django ORM L
 - [x] **v0.3.0** — Named color themes (`auto` / `default` / `dark` / `forest` / `neutral`)
 - [x] **v0.3.1** — `through_model` on M2M edges (contributed by [@kingrubic](https://github.com/kingrubic))
 - [x] **v0.3.1** — Listed in the [official MCP Registry](https://registry.modelcontextprotocol.io/) + [Glama.ai](https://glama.ai/mcp/servers/FROWNINGdev/django-orm-lens)
+- [x] **v0.6.0** — CLI `nplusone` — static N+1 detector (FK/M2M access inside loops without `select_related`/`prefetch_related`)
+- [x] **v0.6.0** — CLI `migration-risk` — flags risky operations in `migrations/*.py` (15 rules today)
+- [x] **v0.6.0** — CLI `diff` — compare two schema JSON dumps for PR review
+- [x] **v0.6.0** — ER-diagram minimap color-codes nodes by Django app
+- [x] **v0.6.0** — README translations: 🇷🇺 Russian, 🇪🇸 Spanish, 🇨🇳 Chinese
+- [x] **v0.6.0** — Docker image on GHCR: `docker run ghcr.io/frowningdev/django-orm-lens`
+- [x] **v0.7.0** — `settings.AUTH_USER_MODEL` resolves everywhere: n+1 reverse-relations, signal senders, Mermaid ER, VS Code webview, inbound-relation panel, React ER
+- [x] **v0.7.0** — AST-based field parser: `ForeignKey(on_delete=CASCADE, to='User')` resolves regardless of kwarg order (Python + TS parity)
+- [x] **v0.7.0** — Public shared helpers: `find_user_model`, `resolve_related_tail`, `find_model`, `iter_workspace_py_files` (Python) + `findUserModel`, `resolveRelatedTail` (TS)
+- [x] **v0.7.0** — `--verbose` no longer walks the tree twice; `WorkspaceIndex.scanned_files` carries the count
+- [x] **v0.7.3** — PEP-526 type annotations on fields (`jti: CharField[str] = models.CharField(...)`) now parse — reported by [@jsabater](https://github.com/jsabater) ([#25](https://github.com/FROWNINGdev/django-orm-lens/issues/25)) with a clean Django Ninja 1.6 repro
+- [x] **v0.7.4** — PEP-695 generic class headers (Python 3.12+): `class Container[T](models.Model):` now parses
+- [x] **v0.7.5** — Aliased models module (`from django.db import models as m`) and third-party field packages (`jsonfield.JSONField`) now detected
+- [x] **v0.7.6** — Tab-indented model bodies now parse (editors defaulting to tabs no longer show empty models)
+- [x] **v0.8.0** — Inline QuickFixes: 16 rules (`DOL001`..`DOL032`) with per-rule severity + Ruff-style select/ignore + inline `# django-orm-lens-disable-next-line`
+- [x] **v0.8.0** — Factory generator: `factory_boy` scaffold from any model with Faker providers keyed by field type
+- [x] **v0.8.0** — Time-Travel Schema Diff: pick two commits → typed markdown diff with first-class rename detection
+- [x] **v0.8.0** — Impact analysis: workspace-wide field-reference scan across every Django layer with Certain/Likely/Possibly confidence tags
+- [x] **v0.8.0** — Interactive Query Builder: right-click → template → snippet inserted at cursor, grammar-aware (FK gets `.select_related`, `related_name` honoured)
+- [x] **v0.8.0** — Sidebar UX overhaul: stable `TreeItem.id`, `MarkdownString` tooltips with `command:` deep-links, `FileDecorationProvider` badges, `TreeView.badge` on the activity bar, three when-gated `viewsWelcome` states
+
+**v1.5.0** — the "one core, three surfaces" wave
+
+- [x] CI formats: SARIF 2.1.0 + `--format github` PR annotations for `nplusone` and `migration-risk`
+- [x] Four analyzers promoted from MCP-only to the CLI: `suggest-indexes`, `signals`, `migration-deps`, `cascade`
+- [x] `er --format dbml | d2 | plantuml | dot` — community-standard diagram exports (dbdiagram.io, D2, PlantUML, Graphviz — `dot` contributed by [@JJordan0C](https://github.com/JJordan0C))
+- [x] Three new migration-risk rules: `runpython_no_reverse`, `alter_unique_together_lock`, `alter_index_together_deprecated` — 15 total
+- [x] pre-commit hooks (`django-orm-lens-nplusone`, `django-orm-lens-migration-risk`) + composite GitHub Action
+- [x] `docs/rules/` — a documentation page for every rule (19 pages)
+- [x] Golden-snapshot regression suite over 59 real-world models (Zulip / Saleor / Wagtail / django CMS / Mezzanine); ruff + mypy now gate CI
+- [x] Migration dependency graph — `migration-deps` (text / json / mermaid)
+
+**py-1.7 → 1.8** — the schema-intelligence wave
+
+- [x] `blast-radius` — migration risks joined with what still reads the schema they touch, as a PR bot (`comment: true`, sticky, `only-changed`)
+- [x] `drift` — `makemigrations --check` without booting Django
+- [x] `impact <name>` — what still references a model or field, grouped by Django layer
+- [x] `blast-radius --stats` + `stats-sql` — optional production row counts from read-only SQL you run yourself (the tool never holds a DB credential)
+- [x] `nplusone` resolves across functions — a queryset returned by a helper is followed into the loop that consumes it
+- [x] `blast_radius`, `drift` and `impact` exposed as MCP tools — thirteen tools for AI agents
+- [x] `drift` documents its `!!` / `~` marks in the report and in `--help` — reported by [@sevdog](https://github.com/sevdog) ([#57](https://github.com/FROWNINGdev/django-orm-lens/issues/57))
+- [x] `drift` follows inheritance from abstract bases — an abstract base's fields count as the concrete child's own, as Django treats them — reported by [@sevdog](https://github.com/sevdog) ([#58](https://github.com/FROWNINGdev/django-orm-lens/issues/58))
+- [x] `suggest-index` recognises the indexes Django already made — primary key (`pk` and `id` are one lookup), `db_index`, `unique`, foreign keys, `unique_together`, `UniqueConstraint` — reported by [@sevdog](https://github.com/sevdog) ([#60](https://github.com/FROWNINGdev/django-orm-lens/issues/60)), same cause independently found by [@RinZ27](https://github.com/RinZ27) ([#61](https://github.com/FROWNINGdev/django-orm-lens/pull/61))
+- [x] A sixth golden fixture — Read the Docs joins Zulip, Saleor, Wagtail, django-CMS and Mezzanine, putting the parser under 75 models and 538 fields of real-world Django — contributed by [@JJordan0C](https://github.com/JJordan0C) ([#62](https://github.com/FROWNINGdev/django-orm-lens/pull/62), closing [#51](https://github.com/FROWNINGdev/django-orm-lens/issues/51))
+- [x] django-taggit `TaggableManager` is read as the M2M it is — through `taggit.TaggedItem` to `taggit.Tag`, `through=` overrides honoured, in both the Python and the TypeScript parser — contributed by [@Guflly](https://github.com/Guflly) ([#63](https://github.com/FROWNINGdev/django-orm-lens/pull/63), closing [#50](https://github.com/FROWNINGdev/django-orm-lens/issues/50))
+- [x] `DOL021` states the `USE_TZ` default correctly — `False` through Django 4.2, `True` from 5.0, with the `startproject` template's `USE_TZ = True` since 4.0 called out as the separate thing it is — and no longer claims `timezone.now()` is always aware UTC — found by [@Justine0211](https://github.com/Justine0211) while translating the page ([#52](https://github.com/FROWNINGdev/django-orm-lens/issues/52))
+- [x] The `parity_input.py` fixture carries the `models` import a real `models.py` would have — contributed by [@RinZ27](https://github.com/RinZ27) ([#64](https://github.com/FROWNINGdev/django-orm-lens/pull/64))
+
+**py-1.9 → 1.12** — the real-checkout wave
+
+Found by running the CLI over actual checkouts of django-oscar, django-guardian, django-allauth and django-cms rather than over fixtures. Every one of these was invisible to a green test suite, and two of them made the tool answer confidently with something false.
+
+- [x] Models declared inside a module-level block parse — the swappable-model idiom (`if not is_model_registered(...):` and then an indented `class`) that every pluggable Django framework uses, against class discovery anchored on `^class`. django-oscar went from 12 models, every one of them from its own `tests/` directory, to 82. All six golden snapshots stayed byte-identical: a column-0 class parses exactly as before
+- [x] `abstract_models.py` is read alongside `models.py` — pluggable frameworks keep the abstract base there and leave `models.py` holding only the concrete subclass, so 72 of django-oscar's 83 models reported zero fields between them. Now 8, and those 8 are correct: they subclass *concrete* models, where multi-table inheritance leaves the columns on the parent's table
+- [x] `drift` no longer fails a build over two app directories sharing a name — replayed migration state is merged per app name, matching how the declared side is already keyed. On a real django-guardian checkout the blocking count goes 1 → 0 and the contradictory duplicate row disappears, while a genuinely unmigrated field still blocks
+- [x] django-mptt models are no longer invisible — `MPTTModel` is a recognised base, and `TreeForeignKey` / `TreeOneToOneField` / `TreeManyToManyField` are reported as the Django fields they subclass, so `TreeForeignKey('self', ...)` draws exactly the self-edge a plain `ForeignKey('self', ...)` does. No `django-mptt` dependency is added — the parser keeps working against a broken venv. Saleor's `product.Category` and its `children` edge now appear in the golden snapshot: 76 added lines, none removed (closing [#49](https://github.com/FROWNINGdev/django-orm-lens/issues/49))
+- [x] The MCP server reports its own version — `FastMCP` forwards none, so the SDK fell back to `importlib.metadata.version("mcp")` and every `initialize` response named the wrong project's release number to the client
+
+**v0.9 → v0.12.1** — the extension catches up
+
+- [x] **v0.9.0** — Partial `UniqueConstraint` tracking in Time-Travel Schema Diff: `add` / `drop` / `change` / `rename` as typed events, with `fromCondition` carrying the pre-change predicate so a review comment can show `Q(is_primary=True) → Q(is_primary=True, deleted=False)`, and a rename no longer showing up as a lossy `add + drop` pair. Multiple unnamed constraints on one model key onto `#anon-<index>` instead of collapsing into a single event. Prompted by django-extensions [#1813](https://github.com/django-extensions/django-extensions/issues/1813), where `sqldiff` drops the `condition=` predicate so migration reviewers never see what changed
+- [x] **v0.10.0** — Impact-analysis layer detection runs on the workspace-relative path. It used to match `/tests/` and `/views.py` anywhere in a file's *absolute* path, so a project checked out under any directory called `tests` — or a monorepo with `services/tests/` above it — had every file reported as that layer, `views.py` as a test, `admin.py` as a test. Also: webview messages validated by origin rather than by source, and conflicting leaf migrations detected — two migrations claiming the same parent, which Django only complains about at `migrate` time
+- [x] **v0.10.1** — The Marketplace listing names impact analysis, blast radius and schema drift, and says plainly that the tool is free and MIT with no Pro tier. The store page had still described the extension as a sidebar and an ER diagram — what it was two waves earlier — so nobody searching for those features found it. Metadata takes effect only on publish, which is why it needed a release of its own
+- [x] **v0.11.0** — The TypeScript half of django-mptt support, cut as its own release rather than folded into a later one: between py-1.12.0 shipping and this build, the CLI and the extension disagreed about what a django-mptt schema contains, which is the exact failure the shared golden fixture exists to prevent
+- [x] **v0.12.0** — The extension asks for a GitHub star, on the third *user-initiated* ER-diagram open. Not on install: a prompt arriving before the tool has done anything gets dismissed reflexively, and that dismissal is permanent in the user's mind. Sidebar refreshes that re-render an already-open panel are not counted — they are not the user asking for anything. "Later" and "Don't ask again" are stored as separate states, so a deferral re-arms the ask exactly once, twelve opens later; two prompts is the lifetime maximum. The policy is a pure function covered by six tests that need no VS Code host
+- [x] **v0.12.1** — Export as SVG wrote an unopenable file. `toSvg` returns percent-encoded markup where `toPng` returns base64; the save path assumed base64 for anything starting with `data:`, and base64-decoding percent-encoded text does not fail — the decoder silently drops every character outside its alphabet and returns bytes. A 48-character `<svg>` document reached disk with the right name, a plausible size and no valid content anywhere in it. The transfer encoding is now read from the data-URL header instead of guessed from the prefix
 
 **Next**
 
-- [ ] Zoom + minimap + auto-layout inside the webview ([#4](https://github.com/FROWNINGdev/django-orm-lens/issues/4))
-- [ ] ORM query autocomplete inside `.filter()` / `.exclude()` / `.annotate()` ([#3](https://github.com/FROWNINGdev/django-orm-lens/issues/3))
-- [ ] App / model toggle checkboxes to declutter huge schemas
+- [x] **v0.13.0** — Field completion inside `.filter()` / `.exclude()` / `.get()` ([#3](https://github.com/FROWNINGdev/django-orm-lens/issues/3))
+- [x] **v0.10.0** — App / model toggle checkboxes: untick an app or model in the sidebar to drop it from the ER diagram
+- [ ] DOL rule engine ported into the Python CLI — one rule catalogue, three surfaces
 
 **Later**
 
-- [ ] Migration dependency graph
-- [ ] Third-party field support (`django-mptt`, `django-taggit`, `django-model-utils`)
+- [ ] Third-party field support — `django-model-utils` (`django-taggit` shipped in py-1.11.0, `django-mptt` in py-1.12.0 / v0.11.0)
 - [ ] JetBrains / PyCharm plugin (if there is demand)
 
 Vote by 👍-ing the corresponding [issue](https://github.com/FROWNINGdev/django-orm-lens/issues).
@@ -482,6 +838,12 @@ Any MCP-compatible client — Cursor, Aider, Continue.dev, Zed, and any other to
 </details>
 
 <details>
+<summary><b>How do I block schema regressions in CI?</b></summary>
+<br/>
+Three ways, all zero-config: the two <a href="#%EF%B8%8F-gate-your-ci">pre-commit hooks</a>, the composite GitHub Action (<code>uses: FROWNINGdev/django-orm-lens@action-v1</code> with <code>format: github</code> for PR annotations), or <code>--format sarif</code> piped into <code>github/codeql-action/upload-sarif</code> for the Security tab. <code>diff</code> / <code>nplusone</code> exit 1 on findings, <code>migration-risk</code> exits 1 on critical findings.
+</details>
+
+<details>
 <summary><b>Is there a JetBrains / PyCharm version?</b></summary>
 <br/>
 Not yet. PyCharm's Django Structure tool window is already good, so the value delta is smaller. If enough people ask, it becomes worth doing.
@@ -499,39 +861,13 @@ Not yet. PyCharm's Django Structure tool window is already good, so the value de
 
 <br/>
 
-## ✨ Contributors
-
-Thanks to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)) — all contribution types count, not just code. Translations, docs, screenshots, bug reports, and answered questions are all first-class.
-
-New here? See [CONTRIBUTING.md → "How to become a contributor"](.github/CONTRIBUTING.md#how-to-become-a-contributor-all-skill-levels-welcome) and browse [`good first issue`](https://github.com/FROWNINGdev/django-orm-lens/labels/good%20first%20issue).
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tbody>
-    <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/FROWNINGdev"><img src="https://avatars.githubusercontent.com/u/218313741?v=4?s=80" width="80px;" alt="frowningdev"/><br /><sub><b>frowningdev</b></sub></a><br /><a href="https://github.com/FROWNINGdev/django-orm-lens/commits?author=FROWNINGdev" title="Code">💻</a> <a href="#doc-FROWNINGdev" title="Documentation">📖</a> <a href="#design-FROWNINGdev" title="Design">🎨</a> <a href="#ideas-FROWNINGdev" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-FROWNINGdev" title="Maintenance">🚧</a> <a href="#review-FROWNINGdev" title="Reviewed Pull Requests">👀</a> <a href="#test-FROWNINGdev" title="Tests">⚠️</a> <a href="#infra-FROWNINGdev" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/kingrubic"><img src="https://avatars.githubusercontent.com/u/116256161?v=4?s=80" width="80px;" alt="Bao"/><br /><sub><b>Bao</b></sub></a><br /><a href="https://github.com/FROWNINGdev/django-orm-lens/commits?author=kingrubic" title="Code">💻</a> <a href="#test-kingrubic" title="Tests">⚠️</a></td>
-    </tr>
-  </tbody>
-</table>
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://allcontributors.org) specification. To be added, comment `@all-contributors please add @your-username for docs` (or `code`, `translation`, `design`, `ideas`, `question`, `bug`, `test`, `tutorial`, `example`, ...) on any issue or PR.
-
-<br/>
-
 ## 📜 License
 
 MIT © [FROWNINGdev](https://github.com/FROWNINGdev)
 
 <br/>
 
-<div align="center">
+<div align="center" markdown="1">
 
 **Made for developers who care about their codebase.**
 

@@ -1,0 +1,356 @@
+const assert = require('node:assert/strict');
+const Module = require('node:module');
+const test = require('node:test');
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === 'vscode') return {};
+  return originalLoad.call(this, request, parent, isMain);
+};
+
+const { diffSchemas, diffToMarkdown } = require('../out/schemaDiff');
+
+test.after(() => {
+  Module._load = originalLoad;
+});
+
+/** Compact ParsedField factory for test readability. */
+function field(name, type, args = '', extra = {}) {
+  return {
+    name,
+    type,
+    args,
+    isRelation: !!extra.isRelation,
+    relatedModel: extra.relatedModel,
+    relationKind: extra.relationKind,
+    onDelete: extra.onDelete,
+    relatedName: extra.relatedName,
+    throughModel: extra.throughModel,
+    lineNumber: extra.lineNumber ?? 1,
+  };
+}
+
+/** Compact ParsedModel factory. */
+function model(appName, name, fields, meta = {}) {
+  return {
+    name,
+    appName,
+    filePath: `/${appName}/models.py`,
+    lineNumber: 1,
+    fields,
+    meta,
+    baseClasses: ['models.Model'],
+  };
+}
+
+test('empty vs empty → no events', () => {
+  assert.deepEqual(diffSchemas([], []), []);
+});
+
+test('AddModel — new model in the new snapshot', () => {
+  const events = diffSchemas([], [model('blog', 'Post', [field('title', 'CharField')])]);
+  assert.deepEqual(events, [
+    { kind: 'AddModel', model: 'Post', appName: 'blog' },
+  ]);
+});
+
+test('DropModel — model gone in the new snapshot', () => {
+  const events = diffSchemas(
+    [model('blog', 'Draft', [field('title', 'CharField')])],
+    [],
+  );
+  assert.deepEqual(events, [
+    { kind: 'DropModel', model: 'Draft', appName: 'blog' },
+  ]);
+});
+
+test('AddField and DropField inside a matched model', () => {
+  const events = diffSchemas(
+    [
+      model('blog', 'Post', [
+        field('title', 'CharField', 'max_length=100'),
+        field('body', 'TextField'),
+      ]),
+    ],
+    [
+      model('blog', 'Post', [
+        field('title', 'CharField', 'max_length=100'),
+        field('slug', 'SlugField'),
+      ]),
+    ],
+  );
+  assert.equal(events.length, 1);
+  assert.equal(events[0].kind, 'ModifyModel');
+  const changes = events[0].changes.map((c) => c.kind).sort();
+  assert.deepEqual(changes, ['AddField', 'DropField']);
+});
+
+test('ChangeFieldType is emitted for same-name mismatch', () => {
+  const events = diffSchemas(
+    [model('blog', 'Post', [field('id', 'AutoField', 'primary_key=True')])],
+    [model('blog', 'Post', [field('id', 'BigAutoField', 'primary_key=True')])],
+  );
+  assert.equal(events[0].kind, 'ModifyModel');
+  const [c] = events[0].changes;
+  assert.equal(c.kind, 'ChangeFieldType');
+  assert.equal(c.from, 'AutoField');
+  assert.equal(c.to, 'BigAutoField');
+});
+
+test('ChangeFieldOption for null=True → null=False (option flip)', () => {
+  const events = diffSchemas(
+    [
+      model('blog', 'Post', [
+        field('title', 'CharField', 'max_length=100, null=True'),
+      ]),
+    ],
+    [
+      model('blog', 'Post', [
+        field('title', 'CharField', 'max_length=100, null=False'),
+      ]),
+    ],
+  );
+  const [m] = events;
+  const [c] = m.changes;
+  assert.equal(c.kind, 'ChangeFieldOption');
+  assert.equal(c.option, 'null');
+  assert.equal(c.from, 'True');
+  assert.equal(c.to, 'False');
+});
+
+test('ChangeFieldOption ignores verbose_name / help_text noise', () => {
+  const events = diffSchemas(
+    [
+      model('blog', 'Post', [
+        field('title', 'CharField', "max_length=100, verbose_name='Заголовок'"),
+      ]),
+    ],
+    [
+      model('blog', 'Post', [
+        field('title', 'CharField', "max_length=100, verbose_name='Title'"),
+      ]),
+    ],
+  );
+  assert.deepEqual(events, []);
+});
+
+test('ChangeRelation — FK target changed', () => {
+  const events = diffSchemas(
+    [
+      model('blog', 'Post', [
+        field('author', 'ForeignKey', 'Author, on_delete=models.CASCADE', {
+          isRelation: true,
+          relatedModel: 'Author',
+          relationKind: 'ForeignKey',
+        }),
+      ]),
+    ],
+    [
+      model('blog', 'Post', [
+        field('author', 'ForeignKey', 'User, on_delete=models.CASCADE', {
+          isRelation: true,
+          relatedModel: 'User',
+          relationKind: 'ForeignKey',
+        }),
+      ]),
+    ],
+  );
+  const [m] = events;
+  const changeRel = m.changes.find((c) => c.kind === 'ChangeRelation');
+  assert.ok(changeRel);
+  assert.match(changeRel.from, /→ Author/);
+  assert.match(changeRel.to, /→ User/);
+});
+
+test('RenameField — high similarity, same type', () => {
+  const events = diffSchemas(
+    [model('blog', 'Post', [field('titl', 'CharField', 'max_length=100')])],
+    [model('blog', 'Post', [field('title', 'CharField', 'max_length=100')])],
+  );
+  const [m] = events;
+  const rename = m.changes.find((c) => c.kind === 'RenameField');
+  assert.ok(rename, 'expected a RenameField');
+  assert.equal(rename.from, 'titl');
+  assert.equal(rename.to, 'title');
+  assert.ok(rename.confidence >= 0.7);
+});
+
+test('RenameModel — same fields, different name', () => {
+  const events = diffSchemas(
+    [
+      model('blog', 'BlogPost', [
+        field('title', 'CharField', 'max_length=100'),
+        field('body', 'TextField'),
+      ]),
+    ],
+    [
+      model('blog', 'Post', [
+        field('title', 'CharField', 'max_length=100'),
+        field('body', 'TextField'),
+      ]),
+    ],
+  );
+  const rename = events.find((e) => e.kind === 'RenameModel');
+  assert.ok(rename, 'expected RenameModel');
+  assert.equal(rename.from, 'BlogPost');
+  assert.equal(rename.to, 'Post');
+  assert.ok(rename.confidence >= 0.7);
+  // Should NOT also emit AddModel/DropModel for the same pair.
+  assert.equal(
+    events.filter((e) => e.kind === 'AddModel' || e.kind === 'DropModel')
+      .length,
+    0,
+  );
+});
+
+test('deterministic ordering: AddModel < DropModel < RenameModel < ModifyModel', () => {
+  const events = diffSchemas(
+    [
+      model('blog', 'Draft', [field('title', 'CharField', 'max_length=100')]),
+      model('blog', 'Kept', [field('a', 'CharField', 'max_length=10')]),
+    ],
+    [
+      model('blog', 'Post', [field('title', 'CharField', 'max_length=100')]),
+      model('blog', 'Kept', [field('a', 'CharField', 'max_length=20')]),
+    ],
+  );
+  const kinds = events.map((e) => e.kind);
+  const idx = { AddModel: 0, DropModel: 1, RenameModel: 2, ModifyModel: 3 };
+  for (let i = 1; i < kinds.length; i++) {
+    assert.ok(idx[kinds[i - 1]] <= idx[kinds[i]], `order violated at ${i}`);
+  }
+});
+
+test('diffToMarkdown produces a bulleted, model-grouped PR fragment', () => {
+  const md = diffToMarkdown([
+    { kind: 'AddModel', model: 'Post', appName: 'blog' },
+    {
+      kind: 'ModifyModel',
+      model: 'User',
+      appName: 'auth',
+      changes: [
+        { kind: 'AddField', name: 'nickname', type: 'CharField' },
+        {
+          kind: 'ChangeFieldType',
+          name: 'id',
+          from: 'AutoField',
+          to: 'BigAutoField',
+        },
+      ],
+    },
+  ]);
+  assert.match(md, /### Schema changes/);
+  assert.match(md, /blog\.Post/);
+  assert.match(md, /auth\.User/);
+  assert.match(md, /`nickname`/);
+  assert.match(md, /AutoField.*BigAutoField/);
+});
+
+test('diffToMarkdown handles empty diff', () => {
+  const md = diffToMarkdown([]);
+  assert.match(md, /No schema changes/i);
+});
+
+// v0.9 seed — partial UniqueConstraint detection. Inspired by
+// django-extensions#1813 (sqldiff drops the condition= predicate).
+
+/** Compact ParsedModel factory for constraint tests (workflow FK + meta). */
+function orderModel(constraintsStr) {
+  return {
+    ...model('shop', 'Order', [
+      field('workflow', 'ForeignKey', 'Workflow', {
+        isRelation: true,
+        relatedModel: 'Workflow',
+        relationKind: 'ForeignKey',
+      }),
+    ]),
+    meta: constraintsStr ? { constraints: constraintsStr } : {},
+  };
+}
+
+test('PartialUniqueConstraint fires when a new conditioned UniqueConstraint appears', () => {
+  const before = [orderModel(null)];
+  const after = [
+    orderModel(
+      "[UniqueConstraint(fields=['workflow'], condition=Q(is_primary=True), name='unique_primary_attachment')]",
+    ),
+  ];
+  const events = diffSchemas(before, after);
+  const modify = events.find((e) => e.kind === 'ModifyModel');
+  assert.ok(modify, 'expected a ModifyModel event');
+  const pu = modify.changes.find((c) => c.kind === 'PartialUniqueConstraint');
+  assert.ok(pu, 'expected PartialUniqueConstraint');
+  assert.equal(pu.op, 'add');
+  assert.equal(pu.name, 'unique_primary_attachment');
+  assert.match(pu.condition, /Q\(is_primary=True\)/);
+  const md = diffToMarkdown(events);
+  assert.match(md, /\*\*added\*\* `unique_primary_attachment`/);
+  assert.match(md, /UniqueConstraint\(fields=\[/);
+});
+
+test('PartialUniqueConstraint op=drop when constraint disappears', () => {
+  const before = [
+    orderModel(
+      "[UniqueConstraint(fields=['workflow'], condition=Q(is_primary=True), name='unique_primary_attachment')]",
+    ),
+  ];
+  const after = [orderModel(null)];
+  const events = diffSchemas(before, after);
+  const pu = events
+    .find((e) => e.kind === 'ModifyModel')
+    .changes.find((c) => c.kind === 'PartialUniqueConstraint');
+  assert.ok(pu, 'expected PartialUniqueConstraint drop event');
+  assert.equal(pu.op, 'drop');
+  assert.equal(pu.name, 'unique_primary_attachment');
+  const md = diffToMarkdown(events);
+  assert.match(md, /\*\*dropped\*\* `unique_primary_attachment`/);
+});
+
+test('PartialUniqueConstraint op=change when predicate mutates on same name', () => {
+  const before = [
+    orderModel(
+      "[UniqueConstraint(fields=['workflow'], condition=Q(is_primary=True), name='unique_primary_attachment')]",
+    ),
+  ];
+  const after = [
+    orderModel(
+      "[UniqueConstraint(fields=['workflow'], condition=Q(is_primary=True, deleted=False), name='unique_primary_attachment')]",
+    ),
+  ];
+  const events = diffSchemas(before, after);
+  const pu = events
+    .find((e) => e.kind === 'ModifyModel')
+    .changes.find((c) => c.kind === 'PartialUniqueConstraint');
+  assert.ok(pu, 'expected PartialUniqueConstraint change event');
+  assert.equal(pu.op, 'change');
+  assert.equal(pu.name, 'unique_primary_attachment');
+  assert.match(pu.fromCondition, /Q\(is_primary=True\)/);
+  assert.match(pu.condition, /deleted=False/);
+  const md = diffToMarkdown(events);
+  assert.match(md, /\*\*changed\*\* `unique_primary_attachment`/);
+  assert.match(md, /Q\(is_primary=True\) → Q\(is_primary=True, deleted=False\)/);
+});
+
+test('PartialUniqueConstraint op=rename when only the name differs', () => {
+  const before = [
+    orderModel(
+      "[UniqueConstraint(fields=['workflow'], condition=Q(is_primary=True), name='old_name')]",
+    ),
+  ];
+  const after = [
+    orderModel(
+      "[UniqueConstraint(fields=['workflow'], condition=Q(is_primary=True), name='unique_primary_attachment')]",
+    ),
+  ];
+  const events = diffSchemas(before, after);
+  const puEvents = events
+    .find((e) => e.kind === 'ModifyModel')
+    .changes.filter((c) => c.kind === 'PartialUniqueConstraint');
+  assert.equal(puEvents.length, 1, 'rename must not double-emit add+drop');
+  const [pu] = puEvents;
+  assert.equal(pu.op, 'rename');
+  assert.equal(pu.fromName, 'old_name');
+  assert.equal(pu.name, 'unique_primary_attachment');
+  const md = diffToMarkdown(events);
+  assert.match(md, /\*\*renamed\*\* `old_name` → `unique_primary_attachment`/);
+});

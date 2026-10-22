@@ -1,8 +1,17 @@
 {
   "name": "django-orm-lens",
   "displayName": "Django ORM Lens",
-  "description": "Live sidebar + ER diagram for your Django models. Navigate apps, models, fields and relationships without leaving the editor.",
-  "version": "0.5.1",
+  "description": "Autocomplete Django model fields and lookups inside .filter(), and see your entire schema in your editor. Live sidebar, ER diagrams, impact analysis, blast radius and schema drift. Static analysis - no DB, no Django boot. Free and MIT, no Pro tier.",
+  "version": "0.19.4",
+  "preview": false,
+  "galleryBanner": {
+    "color": "#0c4b33",
+    "theme": "dark"
+  },
+  "qna": "marketplace",
+  "sponsor": {
+    "url": "https://github.com/sponsors/FROWNINGdev"
+  },
   "publisher": "frowningdev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -19,6 +28,8 @@
   },
   "categories": [
     "Visualization",
+    "Programming Languages",
+    "AI",
     "Other"
   ],
   "keywords": [
@@ -27,8 +38,43 @@
     "orm",
     "models",
     "er diagram",
+    "erd",
+    "entity relationship",
     "database",
-    "schema"
+    "database schema",
+    "schema",
+    "schema visualizer",
+    "model explorer",
+    "foreign key",
+    "relations",
+    "relationships",
+    "django-rest-framework",
+    "drf",
+    "postgres",
+    "postgresql",
+    "static analysis",
+    "n+1",
+    "query optimization",
+    "mcp",
+    "ai agent",
+    "cursor",
+    "vscodium",
+    "sidebar",
+    "navigation",
+    "migration",
+    "free",
+    "open source",
+    "code review",
+    "pull request",
+    "schema drift",
+    "impact analysis",
+    "blast radius",
+    "autocomplete",
+    "intellisense",
+    "completion",
+    "queryset",
+    "filter",
+    "lookup"
   ],
   "activationEvents": [
     "onStartupFinished",
@@ -59,7 +105,18 @@
     "viewsWelcome": [
       {
         "view": "djangoOrmLens.models",
-        "contents": "No Django models found in this workspace.\n\nDjango ORM Lens scans for `models.py` files and split `models/` package directories, skipping `migrations/`, `venv/`, and `node_modules/` by default.\n\n[Refresh scan](command:djangoOrmLens.refresh)\n\nMake sure you have opened a folder that contains a Django project."
+        "when": "workbenchState == empty",
+        "contents": "**Open a folder to get started.**\n\nDjango ORM Lens indexes every `models.py` in your project and gives you a live schema tree, an ER diagram, hover cards, and inline QuickFixes for common ORM anti-patterns.\n\n[Open Folder](command:vscode.openFolder)\n\n[Documentation](https://github.com/FROWNINGdev/django-orm-lens#readme)"
+      },
+      {
+        "view": "djangoOrmLens.models",
+        "when": "workbenchState != empty && !djangoOrmLens.scanCompleted",
+        "contents": "**Scanning your workspace…**\n\nDjango ORM Lens is walking your project for `models.py` files. This usually takes under a second.\n\nIf the scan doesn't finish, click Refresh below.\n\n[Refresh scan](command:djangoOrmLens.refresh)"
+      },
+      {
+        "view": "djangoOrmLens.models",
+        "when": "workbenchState != empty && djangoOrmLens.scanCompleted",
+        "contents": "**No Django models found in this workspace.**\n\nDjango ORM Lens scans for `models.py` files and split `models/` package directories, skipping `migrations/`, `venv/`, and `node_modules/` by default.\n\n[Refresh scan](command:djangoOrmLens.refresh)\n\n[Adjust excluded paths](command:workbench.action.openSettings?%22djangoOrmLens.excludeGlobs%22)\n\n[Documentation](https://github.com/FROWNINGdev/django-orm-lens#readme)"
       }
     ],
     "commands": [
@@ -91,6 +148,26 @@
         "command": "djangoOrmLens.findReverseRefs",
         "title": "Django ORM Lens: Find Reverse References",
         "icon": "$(references)"
+      },
+      {
+        "command": "djangoOrmLens.generateFactory",
+        "title": "Django ORM Lens: Generate factory_boy Factory",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "djangoOrmLens.showDiff",
+        "title": "Django ORM Lens: Schema Diff (Time-Travel)",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "djangoOrmLens.findImpact",
+        "title": "Django ORM Lens: Find Impact (What Uses This?)",
+        "icon": "$(search)"
+      },
+      {
+        "command": "djangoOrmLens.buildQuery",
+        "title": "Django ORM Lens: Build Query (Insert Snippet)",
+        "icon": "$(zap)"
       }
     ],
     "menus": {
@@ -120,7 +197,32 @@
         {
           "command": "djangoOrmLens.findReverseRefs",
           "when": "view == djangoOrmLens.models && viewItem == djangoOrmLensModel",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "djangoOrmLens.generateFactory",
+          "when": "view == djangoOrmLens.models && viewItem == djangoOrmLensModel",
+          "group": "navigation@2"
+        },
+        {
+          "command": "djangoOrmLens.findImpact",
+          "when": "view == djangoOrmLens.models && viewItem == djangoOrmLensModel",
+          "group": "navigation@3"
+        },
+        {
+          "command": "djangoOrmLens.findImpact",
+          "when": "view == djangoOrmLens.models && viewItem =~ /^field/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "djangoOrmLens.buildQuery",
+          "when": "view == djangoOrmLens.models && viewItem == djangoOrmLensModel",
+          "group": "navigation@4"
+        },
+        {
+          "command": "djangoOrmLens.buildQuery",
+          "when": "view == djangoOrmLens.models && viewItem =~ /^field/",
+          "group": "navigation@2"
         }
       ]
     },
@@ -166,6 +268,50 @@
           "type": "boolean",
           "default": true,
           "description": "Show a CodeLens above each Django model class with field/relation counts and an 'Open ER diagram' action"
+        },
+        "djangoOrmLens.codeFixes.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline QuickFix diagnostics for Django ORM anti-patterns (DOL001-DOL032). Disable to silence the whole rule set."
+        },
+        "djangoOrmLens.completions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Complete model field names and lookups inside Post.objects.filter(...) and its siblings, traversing ForeignKey edges for author__name paths. Disable if another extension already owns Python completion here."
+        },
+        "djangoOrmLens.rules": {
+          "type": "object",
+          "default": {},
+          "description": "Per-rule severity override. Keys are rule codes (DOL001, DOL011, ...), values are 'off' | 'hint' | 'info' | 'warning' | 'error'. Rules not listed use their default severity.",
+          "patternProperties": {
+            "^DOL[0-9]+$": {
+              "type": "string",
+              "enum": [
+                "off",
+                "hint",
+                "info",
+                "warning",
+                "error"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "djangoOrmLens.rulesSelect": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Ruff-style select. If non-empty, only rules matching one of these codes/prefixes run. Example: ['DOL0'] to run only queryset+model rules."
+        },
+        "djangoOrmLens.rulesIgnore": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Ruff-style ignore. Rules whose code matches any prefix here are skipped. Example: ['DOL007'] to silence just the N+1 heuristic."
         }
       }
     }
@@ -181,20 +327,20 @@
     "publish": "vsce publish"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.3.0",
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^3.9.2",
-    "esbuild": "^0.28.1",
-    "sharp": "^0.35.3",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "sharp": "^0.35.5",
     "typescript": "^5.4.0"
   },
   "dependencies": {
-    "@xyflow/react": "^12.11.2",
-    "elkjs": "^0.11.1",
+    "@xyflow/react": "^12.12.0",
+    "elkjs": "^0.12.0",
     "html-to-image": "^1.11.13",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

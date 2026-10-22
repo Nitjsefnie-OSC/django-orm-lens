@@ -1,0 +1,98 @@
+# Jekyll config for the GitHub Pages preview at
+# https://frowningdev.github.io/django-orm-lens/
+#
+# Without this file GitHub Pages falls back to its legacy default
+# renderer that does NOT process markdown inside HTML blocks. Because
+# our README wraps the badge stack and hero section in
+# `<div align="center">` blocks, every `![badge](...)` and `[text](url)`
+# inside those divs stayed as raw text — visible to visitors and cited
+# by wsvincent/awesome-django#378 reviewers as "broken markdown blocks".
+#
+# `parse_block_html: true` fixes that globally; the per-div
+# `markdown="1"` attributes act as belt-and-suspenders in case a future
+# GH-Pages Jekyll bump reverts the default.
+
+theme: jekyll-theme-primer
+
+# Search metadata for the GitHub Pages homepage, consumed by jekyll-seo-tag.
+# Without a `title`/`tagline`/`description` the homepage `<title>` and
+# `<meta name="description">` fell back to the bare repo name — so the page
+# ranked only for the brand name "django-orm-lens", never for the problems
+# people actually search ("django er diagram", "django n+1", "django migration
+# linter"). `tagline` puts those keywords into the homepage `<title>`
+# ("<title> | <tagline>"); `description` carries them into the meta description.
+title: Django ORM Lens
+tagline: Django ER diagram, N+1 and migration-risk linter — no database, no Django boot
+description: >-
+  Static analysis for Django models and migrations: ER diagrams, N+1 detection,
+  schema drift and migration-risk checks across a VS Code extension, a CLI, and
+  an MCP server. No database, no django.setup(). Free and MIT.
+
+# Social card, consumed by jekyll-seo-tag. Without it the homepage unfurled
+# as a bare `summary` card with no image anywhere it was shared.
+#
+# seo-tag resolves `image` off the *page*, not the site root, so setting a
+# top-level `image:` key here does nothing — it has to arrive as a front
+# matter default. Setting the image is also what flips the card type to
+# summary_large_image, so that is not declared separately.
+#
+# The URL must be absolute: seo-tag's absolute_url filter does not prepend the
+# project-pages baseurl, so a root-relative path would resolve off-site.
+defaults:
+  - scope:
+      path: ""
+    values:
+      image: https://frowningdev.github.io/django-orm-lens/media/hero.png
+  # README.md is served twice: as the homepage and again as /README.html. Both
+  # point their canonical at the homepage so search engines treat them as one
+  # page instead of two competing duplicates.
+  - scope:
+      path: "README.md"
+    values:
+      canonical_url: https://frowningdev.github.io/django-orm-lens/
+
+# jekyll-sitemap publishes /sitemap.xml, the file search consoles take to
+# discover and recrawl the site. jekyll-seo-tag is named explicitly rather than
+# left to arrive as a dependency of the theme.
+# Ownership proof for Google Search Console; jekyll-seo-tag renders it as the
+# google-site-verification meta tag. Removing it unverifies the property.
+webmaster_verifications:
+  google: oIa9kh4gq9UEbkoSisvXaKhvzQsEkjzPncVDwkFtdD8
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  parse_block_html: true
+  parse_span_html: true
+  syntax_highlighter: rouge
+
+# Only publish the README as the docs preview — keep the source tree
+# out of the Jekyll site so it does not accidentally rebuild every
+# markdown file under `docs/` or `src/`.
+include:
+  - README.md
+exclude:
+  - node_modules
+  - out
+  - src
+  - test
+  - scripts
+  - cli
+  # docs/rules is published: each page answers a query people search for, and
+  # the README links into it. Two pages stay out because they quote `{{ ... }}`
+  # (a Django template, a GitHub Actions expression) that Liquid would silently
+  # blank out; links to them point at GitHub instead.
+  - docs/i18n
+  - docs/rules/DOL012.md
+  - docs/rules/blast-radius.md
+  - Dockerfile
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - smithery.yaml
+  - CHANGELOG.md
